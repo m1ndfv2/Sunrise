@@ -50,6 +50,48 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
             : Result.Success(clan);
     }
 
+    public async Task<Result> JoinClan(int clanId, int userId, CancellationToken ct = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            var clanExists = await dbContext.Clans.AnyAsync(c => c.Id == clanId, ct);
+            if (!clanExists)
+                return Result.Failure("Clan not found.");
+
+            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            if (user == null)
+                return Result.Failure("User not found.");
+
+            if (user.ClanId.HasValue)
+                return Result.Failure("User is already in a clan.");
+
+            user.ClanId = clanId;
+            dbContext.ClanMembers.Add(new ClanMember
+            {
+                ClanId = clanId,
+                UserId = userId,
+                Role = ClanRole.Member
+            });
+
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            return Result.Success();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("Duplicate entry") == true)
+        {
+            await transaction.RollbackAsync(ct);
+            return Result.Failure("User is already in a clan.");
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
+    }
+
     public async Task<Clan?> GetClanById(int id, QueryOptions? options = null, CancellationToken ct = default)
     {
         return await dbContext.Clans
