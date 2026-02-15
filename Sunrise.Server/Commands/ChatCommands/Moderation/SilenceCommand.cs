@@ -11,7 +11,7 @@ using Sunrise.Shared.Repositories;
 
 namespace Sunrise.Server.Commands.ChatCommands.Moderation;
 
-[ChatCommand("silence", requiredPrivileges: UserPrivilege.Admin)]
+[ChatCommand("silence", requiredPrivileges: UserPrivilege.Moderator)]
 public class SilenceCommand : IChatCommand
 {
     public async Task Handle(Session session, ChatChannel? channel, string[]? args)

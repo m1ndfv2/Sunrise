@@ -6,6 +6,8 @@ using Sunrise.Server.Attributes;
 using Sunrise.Server.Commands;
 using Sunrise.Shared.Application;
 using Sunrise.Shared.Database;
+using Sunrise.Shared.Enums.Users;
+using Sunrise.Shared.Extensions.Users;
 using Sunrise.Shared.Extensions.Scores;
 using Sunrise.Shared.Objects;
 using Sunrise.Shared.Objects.Chat;
@@ -74,7 +76,7 @@ public static class ChatCommandRepository
             return;
         }
 
-        if (!sessionUser.Privilege.HasFlag(handler.RequiredPrivileges))
+        if (!HasPrivilege(sessionUser.Privilege, handler.RequiredPrivileges))
         {
             SendMessage(session, "You don't have permission to use this command.");
             return;
@@ -108,7 +110,7 @@ public static class ChatCommandRepository
         var shouldShowMultiplayerSpecificCommands = session.Match != null;
 
         return Handlers
-            .Where(x => privilege.HasFlag(x.Value.RequiredPrivileges))
+            .Where(x => HasPrivilege(privilege, x.Value.RequiredPrivileges))
             .Where(x => !x.Value.Prefix.Contains("mp") || shouldShowMultiplayerSpecificCommands)
             .Where(x => !x.Value.IsHidden)
             .Select(x => x.Key)
@@ -161,6 +163,11 @@ public static class ChatCommandRepository
         }
 
         return false;
+    }
+
+    private static bool HasPrivilege(UserPrivilege actual, UserPrivilege required)
+    {
+        return actual.HasFlag(required) || actual.GetHighestPrivilege() >= required.GetHighestPrivilege();
     }
 
     private static (string?, string[]?) ActionToCommand(Session session, string message)

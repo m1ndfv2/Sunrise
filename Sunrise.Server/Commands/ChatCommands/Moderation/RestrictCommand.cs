@@ -8,7 +8,7 @@ using Sunrise.Shared.Objects.Sessions;
 
 namespace Sunrise.Server.Commands.ChatCommands.Moderation;
 
-[ChatCommand("restrict", requiredPrivileges: UserPrivilege.Admin)]
+[ChatCommand("restrict", requiredPrivileges: UserPrivilege.Moderator)]
 public class RestrictCommand : IChatCommand
 {
     public async Task Handle(Session session, ChatChannel? channel, string[]? args)
