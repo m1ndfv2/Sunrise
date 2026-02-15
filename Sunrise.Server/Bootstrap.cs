@@ -238,13 +238,11 @@ public static class Bootstrap
             x.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         }).AddJwtBearer(x => { x.TokenValidationParameters = Configuration.WebTokenValidationParameters; });
 
-        builder.Services.AddAuthorization(options =>
-        {
-            options.AddPolicy("RequireSuperUser", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.SuperUser)));
-            options.AddPolicy("RequireAdmin", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Admin)));
-            options.AddPolicy("RequireModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)));
-            options.AddPolicy("RequireBat", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Bat)));
-        });
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy("RequireSuperUser", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.SuperUser)))
+            .AddPolicy("RequireAdmin", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Admin)))
+            .AddPolicy("RequireModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)))
+            .AddPolicy("RequireBat", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Bat)));
 
         builder.Services.AddScoped<IAuthorizationHandler, DatabaseAuthorizationHandler>();
         builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, CustomAuthorizationMiddlewareResultHandler>();
