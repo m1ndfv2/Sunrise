@@ -90,6 +90,7 @@ public class BanchoControllerPostTests(IntegrationDatabaseFixture fixture) : Ban
     [InlineData(UserPrivilege.User)]
     [InlineData(UserPrivilege.Supporter)]
     [InlineData(UserPrivilege.Bat)]
+    [InlineData(UserPrivilege.Moderator)]
     [InlineData(UserPrivilege.Admin)]
     [InlineData(UserPrivilege.Developer)]
     [InlineData(UserPrivilege.SuperUser)]
