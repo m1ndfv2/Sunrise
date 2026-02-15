@@ -2,6 +2,7 @@
 using Sunrise.Shared.Application;
 using Sunrise.Shared.Database.Models;
 using Sunrise.Shared.Database.Models.Beatmap;
+using Sunrise.Shared.Database.Models.Clans;
 using Sunrise.Shared.Database.Models.Events;
 using Sunrise.Shared.Database.Models.Users;
 
@@ -41,6 +42,8 @@ public class SunriseDbContext : DbContext
     public DbSet<BeatmapHype> BeatmapHypes { get; set; }
     public DbSet<CustomBeatmapStatus> CustomBeatmapStatuses { get; set; }
 
+    public DbSet<Clan> Clans { get; set; }
+    public DbSet<ClanMember> ClanMembers { get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -63,6 +66,24 @@ public class SunriseDbContext : DbContext
             .HasOne(ur => ur.Target)
             .WithMany(u => u.UserReceivedRelationships)
             .HasForeignKey(ur => ur.TargetId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Clan)
+            .WithMany(c => c.Users)
+            .HasForeignKey(u => u.ClanId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ClanMember>()
+            .HasOne(cm => cm.Clan)
+            .WithMany(c => c.Members)
+            .HasForeignKey(cm => cm.ClanId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ClanMember>()
+            .HasOne(cm => cm.User)
+            .WithMany()
+            .HasForeignKey(cm => cm.UserId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 

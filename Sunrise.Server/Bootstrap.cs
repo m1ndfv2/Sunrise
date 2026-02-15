@@ -389,7 +389,8 @@ public static class Bootstrap
             .AddApplicationPart(typeof(BaseController).Assembly)
             .AddApplicationPart(typeof(BeatmapController).Assembly)
             .AddApplicationPart(typeof(ScoreController).Assembly)
-            .AddApplicationPart(typeof(UserController).Assembly);
+            .AddApplicationPart(typeof(UserController).Assembly)
+            .AddApplicationPart(typeof(ClanController).Assembly);
 
         builder.Services.AddSingleton<WebSocketManager>();
 
@@ -409,6 +410,7 @@ public static class Bootstrap
         builder.Services.AddScoped<MedalRepository>();
 
         builder.Services.AddScoped<UserRepository>();
+        builder.Services.AddScoped<ClanRepository>();
 
         builder.Services.AddScoped<UserStatsService>();
         builder.Services.AddScoped<UserStatsSnapshotService>();
