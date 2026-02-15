@@ -16,6 +16,7 @@ public sealed class DatabaseService(
     SunriseDbContext dbContext,
     BeatmapRepository beatmapRepository,
     UserRepository userRepository,
+    ClanRepository clanRepository,
     EventRepository eventRepository,
     ScoreRepository scoreRepository,
     MedalRepository medalRepository)
@@ -28,6 +29,7 @@ public sealed class DatabaseService(
     public readonly RedisRepository Redis = redis;
     public readonly ScoreRepository Scores = scoreRepository;
     public readonly UserRepository Users = userRepository;
+    public readonly ClanRepository Clans = clanRepository;
 
     public async Task FlushAndUpdateRedisCache(bool isSoftFlush = true)
     {
