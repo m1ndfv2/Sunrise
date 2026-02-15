@@ -17,6 +17,11 @@ public class Clan
     [MaxLength(2048)]
     public string? AvatarUrl { get; set; }
 
+    [MaxLength(2048)]
+    public string? Description { get; set; }
+
+    public DateTime? NameChangedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<User> Users { get; set; } = new List<User>();

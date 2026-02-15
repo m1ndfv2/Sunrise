@@ -1,14 +1,49 @@
 ﻿using System.Security.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.Extensions.Options;
 using Sunrise.API.Extensions;
 using Sunrise.Shared.Enums.Users;
+using Sunrise.Shared.Extensions.Users;
 
 namespace Sunrise.Server.Middlewares;
 
 public class UserPrivilegeRequirement(UserPrivilege privilege) : IAuthorizationRequirement
 {
     public UserPrivilege Privilege { get; } = privilege;
+}
+
+
+public class PrivilegeAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : DefaultAuthorizationPolicyProvider(options)
+{
+    public override async Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+    {
+        var policy = await base.GetPolicyAsync(policyName);
+
+        if (policy != null)
+            return policy;
+
+        if (!TryGetPrivilegeByPolicyName(policyName, out var privilege))
+            return null;
+
+        return new AuthorizationPolicyBuilder()
+            .AddRequirements(new UserPrivilegeRequirement(privilege))
+            .Build();
+    }
+
+    private static bool TryGetPrivilegeByPolicyName(string policyName, out UserPrivilege privilege)
+    {
+        privilege = policyName switch
+        {
+            "RequireSuperUser" => UserPrivilege.SuperUser,
+            "RequireAdmin" => UserPrivilege.Admin,
+            "RequireModerator" => UserPrivilege.Moderator,
+            "RequireBat" => UserPrivilege.Bat,
+            _ => UserPrivilege.User
+        };
+
+        return privilege != UserPrivilege.User;
+    }
 }
 
 public class DatabaseAuthorizationHandler : IAuthorizationHandler
@@ -29,7 +64,7 @@ public class DatabaseAuthorizationHandler : IAuthorizationHandler
             {
                 var requiredPrivilege = privilegeRequirement.Privilege;
 
-                if (user.Privilege.HasFlag(requiredPrivilege))
+                if (user.Privilege.HasFlag(requiredPrivilege) || user.Privilege.GetHighestPrivilege() >= requiredPrivilege.GetHighestPrivilege())
                 {
                     context.Succeed(requirement);
                 }

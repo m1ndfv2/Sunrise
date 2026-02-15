@@ -9,7 +9,7 @@ using Sunrise.Shared.Repositories;
 
 namespace Sunrise.Server.Commands.ChatCommands.Moderation;
 
-[ChatCommand("unsilence", requiredPrivileges: UserPrivilege.Admin)]
+[ChatCommand("unsilence", requiredPrivileges: UserPrivilege.Moderator)]
 public class UnsilenceCommand : IChatCommand
 {
     public async Task Handle(Session session, ChatChannel? channel, string[]? args)
