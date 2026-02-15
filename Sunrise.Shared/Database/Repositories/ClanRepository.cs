@@ -12,6 +12,14 @@ namespace Sunrise.Shared.Database.Repositories;
 
 public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbContext dbContext)
 {
+    public enum JoinClanResult
+    {
+        Success,
+        ClanNotFound,
+        UserNotFound,
+        UserAlreadyInClan
+    }
+
     public async Task<Result<Clan>> CreateClan(string name, string? avatarUrl, User creator, CancellationToken ct = default)
     {
         if (creator.ClanId.HasValue)
@@ -50,7 +58,7 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
             : Result.Success(clan);
     }
 
-    public async Task<Result> JoinClan(int clanId, int userId, CancellationToken ct = default)
+    public async Task<JoinClanResult> JoinClan(int clanId, int userId, CancellationToken ct = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
 
@@ -58,14 +66,14 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
         {
             var clanExists = await dbContext.Clans.AnyAsync(c => c.Id == clanId, ct);
             if (!clanExists)
-                return Result.Failure("Clan not found.");
+                return JoinClanResult.ClanNotFound;
 
             var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
             if (user == null)
-                return Result.Failure("User not found.");
+                return JoinClanResult.UserNotFound;
 
             if (user.ClanId.HasValue)
-                return Result.Failure("User is already in a clan.");
+                return JoinClanResult.UserAlreadyInClan;
 
             user.ClanId = clanId;
             dbContext.ClanMembers.Add(new ClanMember
@@ -78,12 +86,12 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
             await dbContext.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
 
-            return Result.Success();
+            return JoinClanResult.Success;
         }
         catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("Duplicate entry") == true)
         {
             await transaction.RollbackAsync(ct);
-            return Result.Failure("User is already in a clan.");
+            return JoinClanResult.UserAlreadyInClan;
         }
         catch (Exception)
         {

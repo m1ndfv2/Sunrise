@@ -11,6 +11,7 @@ using Sunrise.Shared.Attributes;
 using Sunrise.Shared.Database;
 using Sunrise.Shared.Database.Models.Clans;
 using Sunrise.Shared.Database.Objects;
+using Sunrise.Shared.Database.Repositories;
 using Sunrise.Shared.Enums.Beatmaps;
 using Sunrise.Shared.Enums.Clans;
 using Sunrise.Shared.Repositories;
@@ -67,15 +68,15 @@ public class ClanController(DatabaseService database, SessionRepository sessions
             return Problem(ApiErrorResponse.Detail.UserAlreadyInClan, statusCode: StatusCodes.Status400BadRequest);
 
         var joinResult = await database.Clans.JoinClan(id, user.Id, ct);
-        if (joinResult.IsFailure)
+        if (joinResult != ClanRepository.JoinClanResult.Success)
         {
-            if (joinResult.Error == ApiErrorResponse.Detail.ClanNotFound)
+            if (joinResult == ClanRepository.JoinClanResult.ClanNotFound)
                 return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
 
-            if (joinResult.Error == ApiErrorResponse.Detail.UserAlreadyInClan)
+            if (joinResult == ClanRepository.JoinClanResult.UserAlreadyInClan)
                 return Problem(ApiErrorResponse.Detail.UserAlreadyInClan, statusCode: StatusCodes.Status400BadRequest);
 
-            return Problem(joinResult.Error, statusCode: StatusCodes.Status400BadRequest);
+            return Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest);
         }
 
         var clan = await database.Clans.GetClanById(id, new QueryOptions(true), ct);
