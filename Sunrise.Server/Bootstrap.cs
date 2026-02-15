@@ -241,6 +241,7 @@ public static class Bootstrap
         builder.Services.AddAuthorizationBuilder()
             .AddPolicy("RequireSuperUser", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.SuperUser)))
             .AddPolicy("RequireAdmin", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Admin)))
+            .AddPolicy("RequireModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)))
             .AddPolicy("RequireBat", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Bat)));
 
         builder.Services.AddScoped<IAuthorizationHandler, DatabaseAuthorizationHandler>();
