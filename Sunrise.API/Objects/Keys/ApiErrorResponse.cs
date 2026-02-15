@@ -30,6 +30,10 @@ public static class ApiErrorResponse
         public const string CantCheckSelfFriendshipStatus = "You can't check your own friendship status.";
 
         public const string UserIsRestricted = "User is restricted.";
+        public const string UserAlreadyInClan = "User is already in a clan.";
+        public const string UserNotInClan = "User is not in a clan.";
+        public const string ClanCreatorCannotLeaveClan = "Clan creator cannot leave the clan.";
+        public const string ClanNotFound = "Clan not found.";
 
         public const string ScoreNotFound = "Score not found.";
         public const string ReplayNotFound = "Replay not found.";
