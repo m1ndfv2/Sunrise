@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Sunrise.Shared.Application;
+using Sunrise.Shared.Database.Models.Clans;
 using Sunrise.Shared.Enums;
 using Sunrise.Shared.Enums.Beatmaps;
 using Sunrise.Shared.Enums.Users;
@@ -29,6 +30,10 @@ public class User
     public UserAccountStatus AccountStatus { get; set; } = UserAccountStatus.Active;
     public DateTime SilencedUntil { get; set; } = DateTime.MinValue;
     public GameMode DefaultGameMode { get; set; } = GameMode.Standard;
+
+    [ForeignKey(nameof(ClanId))]
+    public Clan? Clan { get; set; }
+    public int? ClanId { get; set; }
 
     public ICollection<UserFile> UserFiles { get; set; } = new List<UserFile>();
     
