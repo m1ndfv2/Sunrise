@@ -20,6 +20,15 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
         UserAlreadyInClan
     }
 
+    public enum LeaveClanResult
+    {
+        Success,
+        UserNotFound,
+        UserNotInClan,
+        ClanNotFound,
+        CreatorCannotLeaveClan
+    }
+
     public async Task<Result<Clan>> CreateClan(string name, string? avatarUrl, User creator, CancellationToken ct = default)
     {
         if (creator.ClanId.HasValue)
@@ -92,6 +101,49 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
         {
             await transaction.RollbackAsync(ct);
             return JoinClanResult.UserAlreadyInClan;
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+
+    public async Task<LeaveClanResult> LeaveClan(int userId, CancellationToken ct = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            if (user == null)
+                return LeaveClanResult.UserNotFound;
+
+            if (!user.ClanId.HasValue)
+                return LeaveClanResult.UserNotInClan;
+
+            var clanId = user.ClanId.Value;
+
+            var clanExists = await dbContext.Clans.AnyAsync(c => c.Id == clanId, ct);
+            if (!clanExists)
+                return LeaveClanResult.ClanNotFound;
+
+            var membership = await dbContext.ClanMembers.FirstOrDefaultAsync(cm => cm.ClanId == clanId && cm.UserId == userId, ct);
+            if (membership?.Role == ClanRole.Creator)
+                return LeaveClanResult.CreatorCannotLeaveClan;
+
+            if (membership != null)
+            {
+                dbContext.ClanMembers.Remove(membership);
+            }
+
+            user.ClanId = null;
+
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            return LeaveClanResult.Success;
         }
         catch (Exception)
         {

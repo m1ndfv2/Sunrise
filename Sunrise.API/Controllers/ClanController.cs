@@ -86,6 +86,38 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         return Ok(await BuildClanDetailsResponse(clan, user.DefaultGameMode, ct));
     }
 
+
+    [HttpPost("leave")]
+    [Authorize]
+    [EndpointDescription("Leave clan")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LeaveClan(CancellationToken ct = default)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+
+        if (user.IsRestricted())
+            return Problem(ApiErrorResponse.Detail.UserIsRestricted, statusCode: StatusCodes.Status403Forbidden);
+
+        var leaveResult = await database.Clans.LeaveClan(user.Id, ct);
+        if (leaveResult != ClanRepository.LeaveClanResult.Success)
+        {
+            if (leaveResult == ClanRepository.LeaveClanResult.UserNotInClan)
+                return Problem(ApiErrorResponse.Detail.UserNotInClan, statusCode: StatusCodes.Status400BadRequest);
+
+            if (leaveResult == ClanRepository.LeaveClanResult.ClanNotFound)
+                return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
+
+            if (leaveResult == ClanRepository.LeaveClanResult.CreatorCannotLeaveClan)
+                return Problem(ApiErrorResponse.Detail.ClanCreatorCannotLeaveClan, statusCode: StatusCodes.Status400BadRequest);
+
+            return Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return Ok();
+    }
+
     [HttpGet("{id:int}")]
     [EndpointDescription("Get clan details")]
     [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
