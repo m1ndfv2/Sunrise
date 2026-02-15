@@ -244,6 +244,7 @@ public static class Bootstrap
             .AddPolicy("RequireModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)))
             .AddPolicy("RequireBat", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Bat)));
 
+        builder.Services.AddSingleton<IAuthorizationPolicyProvider, SafeAuthorizationPolicyProvider>();
         builder.Services.AddScoped<IAuthorizationHandler, DatabaseAuthorizationHandler>();
         builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, CustomAuthorizationMiddlewareResultHandler>();
     }
