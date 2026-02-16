@@ -242,6 +242,7 @@ public static class Bootstrap
         {
             options.AddPolicy("RequireSuperUser", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.SuperUser)));
             options.AddPolicy("RequireAdmin", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Admin)));
+            options.AddPolicy("RequireAdminOrModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)));
             options.AddPolicy("RequireModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)));
             options.AddPolicy("RequireBat", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Bat)));
         });
