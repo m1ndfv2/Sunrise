@@ -7,6 +7,30 @@ namespace Sunrise.Shared.Extensions.Performances
 {
     public static class PerformanceAttributesExtensions
     {
+        public static PerformanceAttributes ApplyRelaxPerformanceIfNeeded(this PerformanceAttributes performance, Score score)
+            => performance.ApplyNotStandardModRecalculationsIfNeeded(score);
+
+        public static PerformanceAttributes ApplyRelaxPerformanceIfNeeded(this PerformanceAttributes performance, Mods mods)
+        {
+            var accuracy = 100.0;
+
+            if (performance.State is not null)
+            {
+                var n300 = performance.State.N300 ?? 0;
+                var n100 = performance.State.N100 ?? 0;
+                var n50 = performance.State.N50 ?? 0;
+                var misses = performance.State.Misses ?? 0;
+                var totalHits = n300 + n100 + n50 + misses;
+
+                if (totalHits > 0)
+                {
+                    accuracy = ((n300 * 300.0) + (n100 * 100.0) + (n50 * 50.0)) / (totalHits * 300.0) * 100.0;
+                }
+            }
+
+            return performance.ApplyNotStandardModRecalculationsIfNeeded(accuracy, mods);
+        }
+
         public static PerformanceAttributes ApplyNotStandardModRecalculationsIfNeeded(this PerformanceAttributes performance, Score score)
         {
             if (score.Mods.HasFlag(Mods.Relax) && score.GameMode == GameMode.RelaxStandard)
@@ -43,6 +67,16 @@ namespace Sunrise.Shared.Extensions.Performances
             {
                 performance.PerformancePoints = RecalculateToAutopilotStdPerformance(performance);
             }
+
+            return performance;
+        }
+
+
+        public static PerformanceAttributes FinalizeForAkatsuki(this PerformanceAttributes performance)
+        {
+            performance.PerformancePoints = !double.IsFinite(performance.PerformancePoints)
+                ? 0
+                : Math.Round(performance.PerformancePoints, 3);
 
             return performance;
         }
