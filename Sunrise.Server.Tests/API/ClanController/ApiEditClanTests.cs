@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
-using Sunrise.API.Serializable.Request;
 using Sunrise.API.Serializable.Response;
 using Sunrise.Shared.Database.Models.Clans;
 using Sunrise.Shared.Database.Models.Users;
@@ -25,16 +24,10 @@ public class ApiEditClanTests(IntegrationDatabaseFixture fixture) : ApiTest(fixt
 
         client.UseUserAuthToken(await GetUserAuthTokens(creator));
 
-        var avatarResponse = await client.PatchAsJsonAsync("clan/avatar", new EditClanAvatarRequest
-        {
-            AvatarUrl = "https://cdn.sunrise.test/avatar.png"
-        });
+        var avatarResponse = await client.PatchAsJsonAsync("clan/avatar", new { avatar_url = "https://cdn.sunrise.test/avatar.png" });
         Assert.Equal(HttpStatusCode.OK, avatarResponse.StatusCode);
 
-        var descriptionResponse = await client.PatchAsJsonAsync("clan/description", new EditClanDescriptionRequest
-        {
-            Description = "Top players only"
-        });
+        var descriptionResponse = await client.PatchAsJsonAsync("clan/description", new { description = "Top players only" });
         Assert.Equal(HttpStatusCode.OK, descriptionResponse.StatusCode);
 
         var details = await descriptionResponse.Content.ReadFromJsonAsyncWithAppConfig<ClanDetailsResponse>();
@@ -49,6 +42,29 @@ public class ApiEditClanTests(IntegrationDatabaseFixture fixture) : ApiTest(fixt
     }
 
     [Fact]
+    public async Task TestClanCreatorCanEditAvatarUsingPost()
+    {
+        var client = App.CreateClient().UseClient("api");
+
+        var creator = await CreateTestUser();
+        var clan = await CreateClan(creator);
+
+        client.UseUserAuthToken(await GetUserAuthTokens(creator));
+
+        var response = await client.PostAsJsonAsync("clan/avatar", new { avatar_url = "https://cdn.sunrise.test/new-avatar.png" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var details = await response.Content.ReadFromJsonAsyncWithAppConfig<ClanDetailsResponse>();
+        Assert.NotNull(details);
+        Assert.Equal("https://cdn.sunrise.test/new-avatar.png", details.Clan.AvatarUrl);
+
+        var updatedClan = await Database.Clans.GetClanById(clan.Id);
+        Assert.NotNull(updatedClan);
+        Assert.Equal("https://cdn.sunrise.test/new-avatar.png", updatedClan.AvatarUrl);
+    }
+
+    [Fact]
     public async Task TestClanNameChangeHasHundredYearCooldownForRegularUser()
     {
         var client = App.CreateClient().UseClient("api");
@@ -58,16 +74,10 @@ public class ApiEditClanTests(IntegrationDatabaseFixture fixture) : ApiTest(fixt
 
         client.UseUserAuthToken(await GetUserAuthTokens(creator));
 
-        var firstRename = await client.PatchAsJsonAsync("clan/name", new EditClanNameRequest
-        {
-            Name = $"renamed_{Guid.NewGuid():N}"[..18]
-        });
+        var firstRename = await client.PatchAsJsonAsync("clan/name", new { name = $"renamed_{Guid.NewGuid():N}"[..18] });
         Assert.Equal(HttpStatusCode.OK, firstRename.StatusCode);
 
-        var secondRename = await client.PatchAsJsonAsync("clan/name", new EditClanNameRequest
-        {
-            Name = $"second_{Guid.NewGuid():N}"[..18]
-        });
+        var secondRename = await client.PatchAsJsonAsync("clan/name", new { name = $"second_{Guid.NewGuid():N}"[..18] });
 
         Assert.Equal(HttpStatusCode.BadRequest, secondRename.StatusCode);
 
@@ -90,20 +100,14 @@ public class ApiEditClanTests(IntegrationDatabaseFixture fixture) : ApiTest(fixt
 
         client.UseUserAuthToken(await GetUserAuthTokens(creator));
 
-        var firstRename = await client.PatchAsJsonAsync("clan/name", new EditClanNameRequest
-        {
-            Name = $"support_{Guid.NewGuid():N}"[..18]
-        });
+        var firstRename = await client.PatchAsJsonAsync("clan/name", new { name = $"support_{Guid.NewGuid():N}"[..18] });
         Assert.Equal(HttpStatusCode.OK, firstRename.StatusCode);
 
         clan.NameChangedAt = DateTime.UtcNow.AddDays(-31);
         Database.DbContext.Clans.Update(clan);
         await Database.DbContext.SaveChangesAsync();
 
-        var secondRename = await client.PatchAsJsonAsync("clan/name", new EditClanNameRequest
-        {
-            Name = $"support2_{Guid.NewGuid():N}"[..18]
-        });
+        var secondRename = await client.PatchAsJsonAsync("clan/name", new { name = $"support2_{Guid.NewGuid():N}"[..18] });
 
         Assert.Equal(HttpStatusCode.OK, secondRename.StatusCode);
     }
@@ -122,10 +126,7 @@ public class ApiEditClanTests(IntegrationDatabaseFixture fixture) : ApiTest(fixt
 
         client.UseUserAuthToken(await GetUserAuthTokens(member));
 
-        var response = await client.PatchAsJsonAsync("clan/description", new EditClanDescriptionRequest
-        {
-            Description = "attempt"
-        });
+        var response = await client.PatchAsJsonAsync("clan/description", new { description = "attempt" });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
