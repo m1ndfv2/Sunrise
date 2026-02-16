@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -127,7 +128,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
     [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> EditClanName([FromBody] EditClanNameRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> EditClanName([FromBody] EditClanNameBody request, CancellationToken ct = default)
     {
         var user = HttpContext.GetCurrentUserOrThrow();
 
@@ -169,7 +170,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
     [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> EditClanAvatar([FromBody] EditClanAvatarRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> EditClanAvatar([FromBody] EditClanAvatarBody request, CancellationToken ct = default)
         => await EditClanAvatarInternal(request, ct);
 
     [HttpPost("avatar")]
@@ -178,10 +179,10 @@ public class ClanController(DatabaseService database, SessionRepository sessions
     [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> EditClanAvatarPost([FromBody] EditClanAvatarRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> EditClanAvatarPost([FromBody] EditClanAvatarBody request, CancellationToken ct = default)
         => await EditClanAvatarInternal(request, ct);
 
-    private async Task<IActionResult> EditClanAvatarInternal(EditClanAvatarRequest request, CancellationToken ct)
+    private async Task<IActionResult> EditClanAvatarInternal(EditClanAvatarBody request, CancellationToken ct)
     {
         var user = HttpContext.GetCurrentUserOrThrow();
 
@@ -211,7 +212,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
     [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> EditClanDescription([FromBody] EditClanDescriptionRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> EditClanDescription([FromBody] EditClanDescriptionBody request, CancellationToken ct = default)
     {
         var user = HttpContext.GetCurrentUserOrThrow();
 
@@ -295,5 +296,28 @@ public class ClanController(DatabaseService database, SessionRepository sessions
                 new UserResponse(sessions, cm.User),
                 cm.Role == ClanRole.Creator ? "creator" : "member",
                 cm.User.UserStats.FirstOrDefault(us => us.GameMode == mode)?.PerformancePoints ?? 0)).ToList());
+    }
+
+    public class EditClanNameBody
+    {
+        [Required]
+        [MinLength(2)]
+        [MaxLength(32)]
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+    }
+
+    public class EditClanAvatarBody
+    {
+        [MaxLength(2048)]
+        [JsonPropertyName("avatar_url")]
+        public string? AvatarUrl { get; set; }
+    }
+
+    public class EditClanDescriptionBody
+    {
+        [MaxLength(2048)]
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
     }
 }
