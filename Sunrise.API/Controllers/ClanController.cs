@@ -10,10 +10,12 @@ using Sunrise.API.Serializable.Response;
 using Sunrise.Shared.Attributes;
 using Sunrise.Shared.Database;
 using Sunrise.Shared.Database.Models.Clans;
+using Sunrise.Shared.Database.Models.Users;
 using Sunrise.Shared.Database.Objects;
 using Sunrise.Shared.Database.Repositories;
 using Sunrise.Shared.Enums.Beatmaps;
 using Sunrise.Shared.Enums.Clans;
+using Sunrise.Shared.Enums.Users;
 using Sunrise.Shared.Repositories;
 
 namespace Sunrise.API.Controllers;
@@ -118,6 +120,109 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         return Ok();
     }
 
+
+    [HttpPatch("name")]
+    [Authorize]
+    [EndpointDescription("Change clan name")]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditClanName([FromBody] EditClanNameRequest request, CancellationToken ct = default)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+
+        if (user.IsRestricted())
+            return Problem(ApiErrorResponse.Detail.UserIsRestricted, statusCode: StatusCodes.Status403Forbidden);
+
+        var clanName = request.Name.Trim();
+        if (string.IsNullOrWhiteSpace(clanName))
+            return Problem("Clan name cannot be empty.", statusCode: StatusCodes.Status400BadRequest);
+
+        var (result, nextChangeAt) = await database.Clans.UpdateClanName(
+            user.Id,
+            clanName,
+            user.Privilege.HasFlag(UserPrivilege.Supporter),
+            ct);
+
+        if (result != ClanRepository.EditClanNameResult.Success)
+            return result switch
+            {
+                ClanRepository.EditClanNameResult.UserNotInClan => Problem(ApiErrorResponse.Detail.UserNotInClan,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.EditClanNameResult.ClanNotFound => Problem(ApiErrorResponse.Detail.ClanNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.EditClanNameResult.UserIsNotClanCreator => Problem(ApiErrorResponse.Detail.InsufficientPrivileges,
+                    statusCode: StatusCodes.Status403Forbidden),
+                ClanRepository.EditClanNameResult.ClanNameAlreadyTaken => Problem(ApiErrorResponse.Detail.ClanNameAlreadyTaken,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.EditClanNameResult.NameChangeOnCooldown => Problem(ApiErrorResponse.Detail.ClanNameChangeOnCooldown(nextChangeAt ?? DateTime.UtcNow),
+                    statusCode: StatusCodes.Status400BadRequest),
+                _ => Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest)
+            };
+
+        return await BuildCurrentUserClanDetailsResponse(user, ct);
+    }
+
+    [HttpPatch("avatar")]
+    [Authorize]
+    [EndpointDescription("Change clan avatar")]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditClanAvatar([FromBody] EditClanAvatarRequest request, CancellationToken ct = default)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+
+        if (user.IsRestricted())
+            return Problem(ApiErrorResponse.Detail.UserIsRestricted, statusCode: StatusCodes.Status403Forbidden);
+
+        var result = await database.Clans.UpdateClanAvatar(user.Id, request.AvatarUrl?.Trim(), ct);
+
+        if (result != ClanRepository.EditClanResult.Success)
+            return result switch
+            {
+                ClanRepository.EditClanResult.UserNotInClan => Problem(ApiErrorResponse.Detail.UserNotInClan,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.EditClanResult.ClanNotFound => Problem(ApiErrorResponse.Detail.ClanNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.EditClanResult.UserIsNotClanCreator => Problem(ApiErrorResponse.Detail.InsufficientPrivileges,
+                    statusCode: StatusCodes.Status403Forbidden),
+                _ => Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest)
+            };
+
+        return await BuildCurrentUserClanDetailsResponse(user, ct);
+    }
+
+    [HttpPatch("description")]
+    [Authorize]
+    [EndpointDescription("Change clan description")]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditClanDescription([FromBody] EditClanDescriptionRequest request, CancellationToken ct = default)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+
+        if (user.IsRestricted())
+            return Problem(ApiErrorResponse.Detail.UserIsRestricted, statusCode: StatusCodes.Status403Forbidden);
+
+        var result = await database.Clans.UpdateClanDescription(user.Id, request.Description?.Trim(), ct);
+
+        if (result != ClanRepository.EditClanResult.Success)
+            return result switch
+            {
+                ClanRepository.EditClanResult.UserNotInClan => Problem(ApiErrorResponse.Detail.UserNotInClan,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.EditClanResult.ClanNotFound => Problem(ApiErrorResponse.Detail.ClanNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.EditClanResult.UserIsNotClanCreator => Problem(ApiErrorResponse.Detail.InsufficientPrivileges,
+                    statusCode: StatusCodes.Status403Forbidden),
+                _ => Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest)
+            };
+
+        return await BuildCurrentUserClanDetailsResponse(user, ct);
+    }
+
     [HttpGet("{id:int}")]
     [EndpointDescription("Get clan details")]
     [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
@@ -153,6 +258,18 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         }
 
         return Ok(new ClansLeaderboardResponse(clanResponses, totalCount));
+    }
+
+    private async Task<IActionResult> BuildCurrentUserClanDetailsResponse(User user, CancellationToken ct)
+    {
+        if (!user.ClanId.HasValue)
+            return Problem(ApiErrorResponse.Detail.UserNotInClan, statusCode: StatusCodes.Status400BadRequest);
+
+        var clan = await database.Clans.GetClanById(user.ClanId.Value, new QueryOptions(true), ct);
+        if (clan == null)
+            return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
+
+        return Ok(await BuildClanDetailsResponse(clan, user.DefaultGameMode, ct));
     }
 
     private async Task<ClanDetailsResponse> BuildClanDetailsResponse(Clan clan, GameMode mode, CancellationToken ct)

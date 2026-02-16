@@ -10,6 +10,7 @@ public class ClanResponse
         Id = clan.Id;
         Name = clan.Name;
         AvatarUrl = clan.AvatarUrl;
+        Description = clan.Description;
         TotalPp = totalPp;
         CreatedAt = clan.CreatedAt;
     }
@@ -22,6 +23,9 @@ public class ClanResponse
 
     [JsonPropertyName("avatar_url")]
     public string? AvatarUrl { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
 
     [JsonPropertyName("total_pp")]
     public double TotalPp { get; set; }

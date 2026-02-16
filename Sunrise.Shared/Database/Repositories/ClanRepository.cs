@@ -29,6 +29,26 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
         CreatorCannotLeaveClan
     }
 
+    public enum EditClanResult
+    {
+        Success,
+        UserNotFound,
+        UserNotInClan,
+        ClanNotFound,
+        UserIsNotClanCreator
+    }
+
+    public enum EditClanNameResult
+    {
+        Success,
+        UserNotFound,
+        UserNotInClan,
+        ClanNotFound,
+        UserIsNotClanCreator,
+        ClanNameAlreadyTaken,
+        NameChangeOnCooldown
+    }
+
     public async Task<Result<Clan>> CreateClan(string name, string? avatarUrl, User creator, CancellationToken ct = default)
     {
         if (creator.ClanId.HasValue)
@@ -150,6 +170,91 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
             await transaction.RollbackAsync(ct);
             throw;
         }
+    }
+
+
+    public async Task<EditClanResult> UpdateClanAvatar(int userId, string? avatarUrl, CancellationToken ct = default)
+    {
+        var state = await GetClanEditState(userId, ct);
+        if (state.Result != EditClanResult.Success)
+            return state.Result;
+
+        state.Clan!.AvatarUrl = avatarUrl;
+
+        await dbContext.SaveChangesAsync(ct);
+
+        return EditClanResult.Success;
+    }
+
+    public async Task<EditClanResult> UpdateClanDescription(int userId, string? description, CancellationToken ct = default)
+    {
+        var state = await GetClanEditState(userId, ct);
+        if (state.Result != EditClanResult.Success)
+            return state.Result;
+
+        state.Clan!.Description = description;
+
+        await dbContext.SaveChangesAsync(ct);
+
+        return EditClanResult.Success;
+    }
+
+    public async Task<(EditClanNameResult Result, DateTime? NextChangeAt)> UpdateClanName(int userId, string name, bool hasSupporterPrivilege,
+        CancellationToken ct = default)
+    {
+        var state = await GetClanEditState(userId, ct);
+        if (state.Result != EditClanResult.Success)
+            return state.Result switch
+            {
+                EditClanResult.UserNotFound => (EditClanNameResult.UserNotFound, null),
+                EditClanResult.UserNotInClan => (EditClanNameResult.UserNotInClan, null),
+                EditClanResult.ClanNotFound => (EditClanNameResult.ClanNotFound, null),
+                EditClanResult.UserIsNotClanCreator => (EditClanNameResult.UserIsNotClanCreator, null),
+                _ => (EditClanNameResult.ClanNotFound, null)
+            };
+
+        var clan = state.Clan!;
+        var normalizedName = name.Trim();
+
+        if (!string.Equals(clan.Name, normalizedName, StringComparison.Ordinal))
+        {
+            var isNameTaken = await dbContext.Clans.AnyAsync(c => c.Name == normalizedName && c.Id != clan.Id, ct);
+            if (isNameTaken)
+                return (EditClanNameResult.ClanNameAlreadyTaken, null);
+
+            var cooldown = hasSupporterPrivilege ? TimeSpan.FromDays(30) : TimeSpan.FromDays(36500);
+            var lastNameChange = clan.NameChangedAt ?? clan.CreatedAt;
+
+            if (lastNameChange.Add(cooldown) > DateTime.UtcNow)
+                return (EditClanNameResult.NameChangeOnCooldown, lastNameChange.Add(cooldown));
+
+            clan.Name = normalizedName;
+            clan.NameChangedAt = DateTime.UtcNow;
+
+            await dbContext.SaveChangesAsync(ct);
+        }
+
+        return (EditClanNameResult.Success, null);
+    }
+
+    private async Task<(EditClanResult Result, Clan? Clan)> GetClanEditState(int userId, CancellationToken ct)
+    {
+        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user == null)
+            return (EditClanResult.UserNotFound, null);
+
+        if (!user.ClanId.HasValue)
+            return (EditClanResult.UserNotInClan, null);
+
+        var clan = await dbContext.Clans.FirstOrDefaultAsync(c => c.Id == user.ClanId, ct);
+        if (clan == null)
+            return (EditClanResult.ClanNotFound, null);
+
+        var isCreator = await dbContext.ClanMembers.AnyAsync(cm => cm.ClanId == clan.Id && cm.UserId == userId && cm.Role == ClanRole.Creator, ct);
+        if (!isCreator)
+            return (EditClanResult.UserIsNotClanCreator, null);
+
+        return (EditClanResult.Success, clan);
     }
 
     public async Task<Clan?> GetClanById(int id, QueryOptions? options = null, CancellationToken ct = default)
