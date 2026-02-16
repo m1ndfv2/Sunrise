@@ -30,11 +30,6 @@ public static class ApiErrorResponse
         public const string CantCheckSelfFriendshipStatus = "You can't check your own friendship status.";
 
         public const string UserIsRestricted = "User is restricted.";
-        public const string UserAlreadyInClan = "User is already in a clan.";
-        public const string UserNotInClan = "User is not in a clan.";
-        public const string ClanCreatorCannotLeaveClan = "Clan creator cannot leave the clan.";
-        public const string ClanNameAlreadyTaken = "Clan name is already taken.";
-        public const string ClanNotFound = "Clan not found.";
 
         public const string ScoreNotFound = "Score not found.";
         public const string ReplayNotFound = "Replay not found.";
@@ -45,6 +40,8 @@ public static class ApiErrorResponse
         public const string RestrictionReasonMustBeProvided = "Restriction reason must be provided when restricting a user.";
         public const string UserAlreadyRestricted = "User is already restricted.";
         public const string UserAlreadyUnrestricted = "User is not restricted.";
+
+        public const string RestrictedActionForPrivilegedUser = "Moderators can restrict or unrestrict only regular users.";
 
         public const string InvalidCredentialsProvided = "Invalid credentials provided.";
 
@@ -81,11 +78,6 @@ public static class ApiErrorResponse
         public static string ChangeCountryOnCooldown(DateTime changePossibleAfterDateTime)
         {
             return $"You'll be able to change your country on {changePossibleAfterDateTime} UTC+0";
-        }
-
-        public static string ClanNameChangeOnCooldown(DateTime changePossibleAfterDateTime)
-        {
-            return $"You'll be able to change your clan name on {changePossibleAfterDateTime} UTC+0";
         }
     }
 }

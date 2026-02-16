@@ -1,10 +1,11 @@
-﻿namespace Sunrise.API.Enums;
+namespace Sunrise.API.Enums;
 
 public enum UserBadge
 {
     Developer = 0,
     Admin = 1,
-    Bat = 2,
-    Bot = 3,
-    Supporter = 4
+    Moderator = 2,
+    Bat = 3,
+    Bot = 4,
+    Supporter = 5
 }
