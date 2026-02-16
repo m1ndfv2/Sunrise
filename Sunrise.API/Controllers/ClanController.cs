@@ -8,6 +8,7 @@ using Sunrise.API.Extensions;
 using Sunrise.API.Objects.Keys;
 using Sunrise.API.Serializable.Request;
 using Sunrise.API.Serializable.Response;
+using Sunrise.API.Services;
 using Sunrise.Shared.Attributes;
 using Sunrise.Shared.Database;
 using Sunrise.Shared.Database.Models.Clans;
@@ -15,7 +16,6 @@ using Sunrise.Shared.Database.Models.Users;
 using Sunrise.Shared.Database.Objects;
 using Sunrise.Shared.Database.Repositories;
 using Sunrise.Shared.Enums.Beatmaps;
-using Sunrise.Shared.Enums.Clans;
 using Sunrise.Shared.Enums.Users;
 using Sunrise.Shared.Repositories;
 
@@ -51,7 +51,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (createResult.IsFailure)
             return Problem(createResult.Error, statusCode: StatusCodes.Status400BadRequest);
 
-        return Ok(await BuildClanDetailsResponse(createResult.Value, user.DefaultGameMode, ct));
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, createResult.Value, user.DefaultGameMode, ct));
     }
 
     [HttpPost("{id:int}/join")]
@@ -86,7 +86,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (clan == null)
             return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
 
-        return Ok(await BuildClanDetailsResponse(clan, user.DefaultGameMode, ct));
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, clan, user.DefaultGameMode, ct));
     }
 
 
@@ -120,6 +120,82 @@ public class ClanController(DatabaseService database, SessionRepository sessions
 
         return Ok();
     }
+
+
+    [HttpDelete]
+    [Authorize]
+    [EndpointDescription("Delete current user's clan (creator only)")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteClan(CancellationToken ct = default)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+
+        var result = await database.Clans.DeleteClan(user.Id, user.IsRestricted(), ct);
+
+        if (result != ClanRepository.DeleteClanResult.Success)
+            return result switch
+            {
+                ClanRepository.DeleteClanResult.UserNotFound => Problem(ApiErrorResponse.Detail.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.DeleteClanResult.UserNotInClan => Problem(ApiErrorResponse.Detail.UserNotInClan,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.DeleteClanResult.ClanNotFound => Problem(ApiErrorResponse.Detail.ClanNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.DeleteClanResult.UserIsNotClanCreator => Problem(ApiErrorResponse.Detail.InsufficientPrivileges,
+                    statusCode: StatusCodes.Status403Forbidden),
+                ClanRepository.DeleteClanResult.CannotDeleteClanAsRestrictedUser => Problem(ApiErrorResponse.Detail.UserIsRestricted,
+                    statusCode: StatusCodes.Status403Forbidden),
+                _ => Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest)
+            };
+
+        return Ok();
+    }
+
+
+
+
+    [HttpPost("kick/{userId:int}")]
+    [Authorize]
+    [EndpointDescription("Kick member from clan")]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> KickClanMember([Range(1, int.MaxValue)] int userId, CancellationToken ct = default)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+
+        if (user.IsRestricted())
+            return Problem(ApiErrorResponse.Detail.UserIsRestricted, statusCode: StatusCodes.Status403Forbidden);
+
+        var result = await database.Clans.KickClanMember(user.Id, userId, ct);
+
+        if (result != ClanRepository.KickClanMemberResult.Success)
+            return result switch
+            {
+                ClanRepository.KickClanMemberResult.UserNotFound => Problem(ApiErrorResponse.Detail.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.KickClanMemberResult.UserNotInClan => Problem(ApiErrorResponse.Detail.UserNotInClan,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.KickClanMemberResult.ClanNotFound => Problem(ApiErrorResponse.Detail.ClanNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.KickClanMemberResult.UserIsNotClanCreator => Problem(ApiErrorResponse.Detail.InsufficientPrivileges,
+                    statusCode: StatusCodes.Status403Forbidden),
+                ClanRepository.KickClanMemberResult.TargetUserNotFound => Problem(ApiErrorResponse.Detail.UserNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.KickClanMemberResult.TargetUserNotInClan => Problem(ApiErrorResponse.Detail.ClanMemberNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.KickClanMemberResult.TargetUserIsClanCreator => Problem(ApiErrorResponse.Detail.ClanCreatorCannotBeKicked,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.KickClanMemberResult.CannotKickSelf => Problem(ApiErrorResponse.Detail.CannotKickYourselfFromClan,
+                    statusCode: StatusCodes.Status400BadRequest),
+                _ => Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest)
+            };
+
+        return await BuildCurrentUserClanDetailsResponse(user, ct);
+    }
+
 
 
     [HttpPatch("name")]
@@ -297,7 +373,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (clan == null)
             return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
 
-        return Ok(await BuildClanDetailsResponse(clan, mode, ct));
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, clan, mode, ct));
     }
 
     [HttpGet("leaderboard")]
@@ -330,20 +406,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (clan == null)
             return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
 
-        return Ok(await BuildClanDetailsResponse(clan, user.DefaultGameMode, ct));
-    }
-
-    private async Task<ClanDetailsResponse> BuildClanDetailsResponse(Clan clan, GameMode mode, CancellationToken ct)
-    {
-        var members = await database.Clans.GetClanMembersByPp(clan.Id, mode, ct);
-        var totalPp = await database.Clans.GetClanTotalPp(clan.Id, mode, ct);
-
-        return new ClanDetailsResponse(
-            new ClanResponse(clan, totalPp),
-            members.Select(cm => new ClanMemberResponse(
-                new UserResponse(sessions, cm.User),
-                cm.Role == ClanRole.Creator ? "creator" : "member",
-                cm.User.UserStats.FirstOrDefault(us => us.GameMode == mode)?.PerformancePoints ?? 0)).ToList());
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, clan, user.DefaultGameMode, ct));
     }
 
     public class EditClanNameBody

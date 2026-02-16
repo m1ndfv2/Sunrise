@@ -14,7 +14,7 @@ public class Clan
     [MaxLength(32)]
     public string Name { get; set; }
 
-    [MaxLength(2048)]
+    [MaxLength(8192)]
     public string? AvatarUrl { get; set; }
 
     [MaxLength(2048)]

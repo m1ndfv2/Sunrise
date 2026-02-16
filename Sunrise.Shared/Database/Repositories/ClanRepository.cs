@@ -38,6 +38,35 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
         UserIsNotClanCreator
     }
 
+    public enum KickClanMemberResult
+    {
+        Success,
+        UserNotFound,
+        UserNotInClan,
+        ClanNotFound,
+        UserIsNotClanCreator,
+        TargetUserNotFound,
+        TargetUserNotInClan,
+        TargetUserIsClanCreator,
+        CannotKickSelf
+    }
+
+    public enum DeleteClanResult
+    {
+        Success,
+        UserNotFound,
+        UserNotInClan,
+        ClanNotFound,
+        UserIsNotClanCreator,
+        CannotDeleteClanAsRestrictedUser
+    }
+
+    public enum DeleteClanByAdminResult
+    {
+        Success,
+        ClanNotFound
+    }
+
     public enum EditClanNameResult
     {
         Success,
@@ -171,6 +200,140 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
             throw;
         }
     }
+
+
+    public async Task<DeleteClanResult> DeleteClan(int currentUserId, bool isRestricted, CancellationToken ct = default)
+    {
+        if (isRestricted)
+            return DeleteClanResult.CannotDeleteClanAsRestrictedUser;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == currentUserId, ct);
+            if (user == null)
+                return DeleteClanResult.UserNotFound;
+
+            if (!user.ClanId.HasValue)
+                return DeleteClanResult.UserNotInClan;
+
+            var clanId = user.ClanId.Value;
+
+            var clan = await dbContext.Clans.FirstOrDefaultAsync(c => c.Id == clanId, ct);
+            if (clan == null)
+                return DeleteClanResult.ClanNotFound;
+
+            var isCreator = await dbContext.ClanMembers.AnyAsync(cm => cm.ClanId == clanId && cm.UserId == currentUserId && cm.Role == ClanRole.Creator, ct);
+            if (!isCreator)
+                return DeleteClanResult.UserIsNotClanCreator;
+
+            var usersInClan = await dbContext.Users.Where(u => u.ClanId == clanId).ToListAsync(ct);
+            foreach (var member in usersInClan)
+            {
+                member.ClanId = null;
+            }
+
+            dbContext.Clans.Remove(clan);
+
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            return DeleteClanResult.Success;
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    public async Task<DeleteClanByAdminResult> DeleteClanByAdmin(int clanId, CancellationToken ct = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            var clan = await dbContext.Clans.FirstOrDefaultAsync(c => c.Id == clanId, ct);
+            if (clan == null)
+                return DeleteClanByAdminResult.ClanNotFound;
+
+            var usersInClan = await dbContext.Users.Where(u => u.ClanId == clanId).ToListAsync(ct);
+            foreach (var member in usersInClan)
+            {
+                member.ClanId = null;
+            }
+
+            dbContext.Clans.Remove(clan);
+
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            return DeleteClanByAdminResult.Success;
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+
+
+    public async Task<KickClanMemberResult> KickClanMember(int currentUserId, int targetUserId, CancellationToken ct = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            var currentUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == currentUserId, ct);
+            if (currentUser == null)
+                return KickClanMemberResult.UserNotFound;
+
+            if (!currentUser.ClanId.HasValue)
+                return KickClanMemberResult.UserNotInClan;
+
+            var clanId = currentUser.ClanId.Value;
+
+            var clanExists = await dbContext.Clans.AnyAsync(c => c.Id == clanId, ct);
+            if (!clanExists)
+                return KickClanMemberResult.ClanNotFound;
+
+            var isCreator = await dbContext.ClanMembers.AnyAsync(cm => cm.ClanId == clanId && cm.UserId == currentUserId && cm.Role == ClanRole.Creator, ct);
+            if (!isCreator)
+                return KickClanMemberResult.UserIsNotClanCreator;
+
+            if (currentUserId == targetUserId)
+                return KickClanMemberResult.CannotKickSelf;
+
+            var targetUser = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == targetUserId, ct);
+            if (targetUser == null)
+                return KickClanMemberResult.TargetUserNotFound;
+
+            if (targetUser.ClanId != clanId)
+                return KickClanMemberResult.TargetUserNotInClan;
+
+            var targetMembership = await dbContext.ClanMembers.FirstOrDefaultAsync(cm => cm.ClanId == clanId && cm.UserId == targetUserId, ct);
+            if (targetMembership?.Role == ClanRole.Creator)
+                return KickClanMemberResult.TargetUserIsClanCreator;
+
+            if (targetMembership != null)
+                dbContext.ClanMembers.Remove(targetMembership);
+
+            targetUser.ClanId = null;
+
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            return KickClanMemberResult.Success;
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
+    }
+
 
 
     public async Task<EditClanResult> UpdateClanAvatar(int userId, string? avatarUrl, CancellationToken ct = default)
