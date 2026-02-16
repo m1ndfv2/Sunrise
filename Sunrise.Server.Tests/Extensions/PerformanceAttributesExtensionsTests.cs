@@ -1,4 +1,5 @@
 ﻿using osu.Shared;
+using Sunrise.Shared.Database.Models;
 using Sunrise.Shared.Extensions.Performances;
 using Sunrise.Tests.Services.Mock;
 
@@ -14,14 +15,11 @@ public class PerformanceAttributesExtensionsTests
     [InlineData(0, 0)]
     public void FinalizeForAkatsuki_ShouldRoundPpToThreeDecimals(double sourcePp, double expectedPp)
     {
-        // Arrange
         var performance = _mocker.Score.GetRandomPerformanceAttributes();
         performance.PerformancePoints = sourcePp;
 
-        // Act
         var finalizedPerformance = performance.FinalizeForAkatsuki();
 
-        // Assert
         Assert.Equal(expectedPp, finalizedPerformance.PerformancePoints);
     }
 
@@ -31,28 +29,52 @@ public class PerformanceAttributesExtensionsTests
     [InlineData(double.NaN)]
     public void FinalizeForAkatsuki_ShouldConvertInvalidValuesToZero(double sourcePp)
     {
-        // Arrange
         var performance = _mocker.Score.GetRandomPerformanceAttributes();
         performance.PerformancePoints = sourcePp;
 
-        // Act
         var finalizedPerformance = performance.FinalizeForAkatsuki();
 
-        // Assert
         Assert.Equal(0, finalizedPerformance.PerformancePoints);
     }
 
     [Fact]
     public void NormalizeForPerformanceCalculation_ShouldAddDoubleTimeForNightcore()
     {
-        // Arrange
         const Mods mods = Mods.Nightcore;
 
-        // Act
         var normalizedMods = mods.NormalizeForPerformanceCalculation();
 
-        // Assert
         Assert.True(normalizedMods.HasFlag(Mods.Nightcore));
         Assert.True(normalizedMods.HasFlag(Mods.DoubleTime));
+    }
+
+    [Fact]
+    public void ApplyLegacyRelaxStdRecalculationIfNeeded_ShouldApplyFormulaForRelaxStandard()
+    {
+        var performance = _mocker.Score.GetRandomPerformanceAttributes();
+        performance.Difficulty.Mode = GameMode.Standard;
+        performance.PerformancePointsAim = 1000;
+        performance.PerformancePointsSpeed = 800;
+        performance.PerformancePointsAccuracy = 500;
+
+        var result = performance.ApplyLegacyRelaxStdRecalculationIfNeeded(98.5, Mods.Relax);
+
+        Assert.NotEqual(0, result.PerformancePoints);
+        Assert.True(result.PerformancePoints > 0);
+    }
+
+    [Fact]
+    public void ApplyLegacyRelaxStdRecalculationIfNeeded_ShouldNotChangeForNonRelax()
+    {
+        var score = _mocker.Score.GetRandomScore();
+        score.GameMode = GameMode.Standard;
+        score.Mods = Mods.Hidden;
+
+        var performance = _mocker.Score.GetRandomPerformanceAttributes();
+        performance.PerformancePoints = 321.123;
+
+        var result = performance.ApplyLegacyRelaxStdRecalculationIfNeeded(score);
+
+        Assert.Equal(321.123, result.PerformancePoints);
     }
 }
