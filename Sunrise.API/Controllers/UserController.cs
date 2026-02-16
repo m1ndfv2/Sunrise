@@ -19,6 +19,7 @@ using Sunrise.Shared.Database.Objects;
 using Sunrise.Shared.Enums;
 using Sunrise.Shared.Enums.Leaderboards;
 using Sunrise.Shared.Enums.Users;
+using Sunrise.Shared.Extensions.Users;
 using Sunrise.Shared.Objects;
 using Sunrise.Shared.Objects.Keys;
 using Sunrise.Shared.Objects.Serializable.Events;
@@ -56,7 +57,7 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
     }
 
     [HttpGet]
-    [Authorize("RequireAdmin")]
+    [Authorize("RequireAdminOrModerator")]
     [Route("{id:int}/sensitive")]
     [EndpointDescription("Get user sensitive profile")]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
@@ -179,7 +180,7 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
 
 
     [HttpPost]
-    [Authorize("RequireAdmin")]
+    [Authorize("RequireAdminOrModerator")]
     [Route("{id:int}/edit/restriction")]
     [EndpointDescription("Update users restriction status")]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status401Unauthorized)]
@@ -195,6 +196,14 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
             return Problem(ApiErrorResponse.Detail.UserNotFound, statusCode: StatusCodes.Status404NotFound);
 
         var isRestricted = await database.Users.Moderation.IsUserRestricted(user.Id);
+
+        var isModeratorOnly = currentUser.Privilege.HasFlag(UserPrivilege.Moderator) &&
+                              !currentUser.Privilege.HasFlag(UserPrivilege.Admin) &&
+                              !currentUser.Privilege.HasFlag(UserPrivilege.Developer) &&
+                              !currentUser.Privilege.HasFlag(UserPrivilege.SuperUser);
+
+        if (isModeratorOnly && user.Privilege.GetHighestPrivilege() >= UserPrivilege.Moderator)
+            return Problem(ApiErrorResponse.Detail.RestrictedActionForPrivilegedUser, statusCode: StatusCodes.Status403Forbidden);
 
         var ip = RegionService.GetUserIpAddress(Request).ToString();
 
@@ -527,7 +536,7 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
     }
 
     [HttpGet]
-    [Authorize("RequireAdmin")]
+    [Authorize("RequireAdminOrModerator")]
     [Route("search/list")]
     [EndpointDescription("Search user by query")]
     [ProducesResponseType(typeof(UsersSensitiveListResponse), StatusCodes.Status200OK)]
@@ -574,7 +583,7 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
     }
 
     [HttpGet]
-    [Authorize("RequireAdmin")]
+    [Authorize("RequireAdminOrModerator")]
     [Route("{id:int}/friends")]
     [EndpointDescription("Get users friends")]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status401Unauthorized)]
@@ -633,7 +642,7 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
     }
 
     [HttpGet]
-    [Authorize("RequireAdmin")]
+    [Authorize("RequireAdminOrModerator")]
     [Route("{id:int}/followers")]
     [EndpointDescription("Get users followers")]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status401Unauthorized)]
@@ -692,7 +701,7 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
     }
 
     [HttpGet]
-    [Authorize("RequireAdmin")]
+    [Authorize("RequireAdminOrModerator")]
     [Route("{id:int}/events")]
     [EndpointDescription("Get users events")]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status401Unauthorized)]
@@ -812,7 +821,7 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
 
         var currentUser = HttpContext.GetCurrentUser();
 
-        if (user.IsRestricted() && (currentUser == null || !currentUser.Privilege.HasFlag(UserPrivilege.Admin)))
+        if (user.IsRestricted() && (currentUser == null || (!currentUser.Privilege.HasFlag(UserPrivilege.Admin) && !currentUser.Privilege.HasFlag(UserPrivilege.Moderator))))
             return Problem(ApiErrorResponse.Detail.UserIsRestricted, statusCode: StatusCodes.Status404NotFound);
 
         return Ok(new UserMetadataResponse(userMetadata));
