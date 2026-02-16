@@ -419,6 +419,8 @@ public static class Bootstrap
 
         builder.Services.AddScoped<UserRepository>();
 
+        builder.Services.AddScoped<ClanRepository>();
+
         builder.Services.AddScoped<UserStatsService>();
         builder.Services.AddScoped<UserStatsSnapshotService>();
         builder.Services.AddScoped<UserStatsRanksService>();

@@ -257,6 +257,20 @@ public class ClanRepository(Lazy<DatabaseService> databaseService, SunriseDbCont
         return (EditClanResult.Success, clan);
     }
 
+
+    public async Task<EditClanResult> UpdateClanTag(int userId, string? tag, CancellationToken ct = default)
+    {
+        var state = await GetClanEditState(userId, ct);
+        if (state.Result != EditClanResult.Success)
+            return state.Result;
+
+        state.Clan!.Tag = tag;
+
+        await dbContext.SaveChangesAsync(ct);
+
+        return EditClanResult.Success;
+    }
+
     public async Task<Clan?> GetClanById(int id, QueryOptions? options = null, CancellationToken ct = default)
     {
         return await dbContext.Clans

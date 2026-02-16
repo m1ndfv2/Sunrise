@@ -7,6 +7,7 @@ using Sunrise.Shared.Database.Models.Users;
 using Sunrise.Shared.Database.Objects;
 using Sunrise.Shared.Enums.Users;
 using Sunrise.Shared.Extensions.Beatmaps;
+using Sunrise.Shared.Extensions.Users;
 using Sunrise.Shared.Objects.Serializable;
 using GameMode = Sunrise.Shared.Enums.Beatmaps.GameMode;
 
@@ -54,7 +55,7 @@ public class UserAttributes
             user = await database.Users.GetUser(UserId,
                 options: new QueryOptions(true)
                 {
-                    QueryModifier = q => q.Cast<User>().Include(u => u.UserStats)
+                    QueryModifier = q => q.Cast<User>().Include(u => u.UserStats).Include(u => u.Clan)
                 });
             if (user == null)
                 throw new ApplicationException($"User with id {UserId} not found");
@@ -74,7 +75,7 @@ public class UserAttributes
         return new BanchoUserPresence
         {
             UserId = user.Id,
-            Username = user.Username,
+            Username = user.GetDisplayUsername(),
             Timezone = Timezone,
             Latitude = ShowUserLocation ? Latitude : 0,
             Longitude = ShowUserLocation ? Longitude : 0,
@@ -96,7 +97,7 @@ public class UserAttributes
             user = await database.Users.GetUser(UserId,
                 options: new QueryOptions(true)
                 {
-                    QueryModifier = q => q.Cast<User>().Include(u => u.UserStats)
+                    QueryModifier = q => q.Cast<User>().Include(u => u.UserStats).Include(u => u.Clan)
                 });
 
             if (user == null)
