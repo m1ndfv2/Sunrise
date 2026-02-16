@@ -20,6 +20,9 @@ public class Clan
     [MaxLength(2048)]
     public string? Description { get; set; }
 
+    [MaxLength(3)]
+    public string? Tag { get; set; }
+
     public DateTime? NameChangedAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

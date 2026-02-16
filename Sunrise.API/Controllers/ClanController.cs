@@ -236,6 +236,54 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         return await BuildCurrentUserClanDetailsResponse(user, ct);
     }
 
+
+    [HttpPatch("tag")]
+    [Authorize]
+    [EndpointDescription("Set or change clan tag")]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditClanTag([FromBody] EditClanTagBody request, CancellationToken ct = default)
+        => await EditClanTagInternal(request, ct);
+
+    [HttpPost("tag")]
+    [Authorize]
+    [EndpointDescription("Set or change clan tag")]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditClanTagPost([FromBody] EditClanTagBody request, CancellationToken ct = default)
+        => await EditClanTagInternal(request, ct);
+
+    private async Task<IActionResult> EditClanTagInternal(EditClanTagBody request, CancellationToken ct)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+
+        if (user.IsRestricted())
+            return Problem(ApiErrorResponse.Detail.UserIsRestricted, statusCode: StatusCodes.Status403Forbidden);
+
+        var clanTag = request.Tag?.Trim().ToUpperInvariant();
+
+        if (!string.IsNullOrWhiteSpace(clanTag) && !System.Text.RegularExpressions.Regex.IsMatch(clanTag, "^[A-Z0-9]{3}$"))
+            return Problem(ApiErrorResponse.Detail.InvalidClanTag, statusCode: StatusCodes.Status400BadRequest);
+
+        var result = await database.Clans.UpdateClanTag(user.Id, string.IsNullOrWhiteSpace(clanTag) ? null : clanTag, ct);
+
+        if (result != ClanRepository.EditClanResult.Success)
+            return result switch
+            {
+                ClanRepository.EditClanResult.UserNotInClan => Problem(ApiErrorResponse.Detail.UserNotInClan,
+                    statusCode: StatusCodes.Status400BadRequest),
+                ClanRepository.EditClanResult.ClanNotFound => Problem(ApiErrorResponse.Detail.ClanNotFound,
+                    statusCode: StatusCodes.Status404NotFound),
+                ClanRepository.EditClanResult.UserIsNotClanCreator => Problem(ApiErrorResponse.Detail.InsufficientPrivileges,
+                    statusCode: StatusCodes.Status403Forbidden),
+                _ => Problem(ApiErrorResponse.Detail.UnknownErrorOccurred, statusCode: StatusCodes.Status400BadRequest)
+            };
+
+        return await BuildCurrentUserClanDetailsResponse(user, ct);
+    }
+
     [HttpGet("{id:int}")]
     [EndpointDescription("Get clan details")]
     [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
@@ -319,5 +367,11 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         [MaxLength(2048)]
         [JsonPropertyName("description")]
         public string? Description { get; set; }
+    }
+
+    public class EditClanTagBody
+    {
+        [JsonPropertyName("tag")]
+        public string? Tag { get; set; }
     }
 }

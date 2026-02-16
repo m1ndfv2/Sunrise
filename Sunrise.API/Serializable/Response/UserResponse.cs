@@ -23,7 +23,7 @@ public class UserResponse
         var session = sessionRepository.GetSession(userId: user.Id);
 
         Id = user.Id;
-        Username = user.Username;
+        Username = user.GetDisplayUsername();
         Description = user.Description;
         Country = user.Country;
         RegisterDate = user.RegisterDate;
