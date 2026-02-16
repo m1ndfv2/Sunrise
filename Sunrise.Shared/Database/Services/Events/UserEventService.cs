@@ -5,6 +5,7 @@ using Sunrise.Shared.Database.Models.Events;
 using Sunrise.Shared.Database.Models.Users;
 using Sunrise.Shared.Database.Objects;
 using Sunrise.Shared.Enums.Users;
+using Sunrise.Shared.Extensions.Users;
 using Sunrise.Shared.Objects;
 using Sunrise.Shared.Objects.Serializable.Events;
 using Sunrise.Shared.Utils;
@@ -47,7 +48,8 @@ public class UserEventService(SunriseDbContext dbContext)
         {
             OldPasswordHash = oldPassword,
             NewPasswordHash = newPassword,
-            UpdatedById = userEventAction.ExecutorUser.Id
+            UpdatedById = userEventAction.ExecutorUser.Id,
+            UpdatedByRole = userEventAction.ExecutorUser.Privilege.GetHighestPrivilege()
         };
 
         return await AddUserEvent(UserEventType.ChangePassword, userEventAction, data);
@@ -259,7 +261,8 @@ public class UserEventService(SunriseDbContext dbContext)
         {
             Reason = reason,
             ExpiryDate = expiryDate,
-            UpdatedById = userEventAction.ExecutorUser.Id
+            UpdatedById = userEventAction.ExecutorUser.Id,
+            UpdatedByRole = userEventAction.ExecutorUser.Privilege.GetHighestPrivilege()
         };
 
         return await AddUserEvent(UserEventType.Restrict, userEventAction, data);
@@ -269,7 +272,8 @@ public class UserEventService(SunriseDbContext dbContext)
     {
         var data = new
         {
-            UpdatedById = userEventAction.ExecutorUser.Id
+            UpdatedById = userEventAction.ExecutorUser.Id,
+            UpdatedByRole = userEventAction.ExecutorUser.Privilege.GetHighestPrivilege()
         };
 
         return await AddUserEvent(UserEventType.Unrestrict, userEventAction, data);
