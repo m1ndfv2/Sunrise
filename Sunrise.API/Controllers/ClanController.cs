@@ -170,6 +170,18 @@ public class ClanController(DatabaseService database, SessionRepository sessions
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> EditClanAvatar([FromBody] EditClanAvatarRequest request, CancellationToken ct = default)
+        => await EditClanAvatarInternal(request, ct);
+
+    [HttpPost("avatar")]
+    [Authorize]
+    [EndpointDescription("Change clan avatar")]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditClanAvatarPost([FromBody] EditClanAvatarRequest request, CancellationToken ct = default)
+        => await EditClanAvatarInternal(request, ct);
+
+    private async Task<IActionResult> EditClanAvatarInternal(EditClanAvatarRequest request, CancellationToken ct)
     {
         var user = HttpContext.GetCurrentUserOrThrow();
 
