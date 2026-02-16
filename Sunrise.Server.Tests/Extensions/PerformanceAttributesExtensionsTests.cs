@@ -1,82 +1,58 @@
 ﻿using osu.Shared;
-using Sunrise.Shared.Database.Models;
-using Sunrise.Shared.Extensions.Beatmaps;
 using Sunrise.Shared.Extensions.Performances;
-using Sunrise.Tests.Extensions;
 using Sunrise.Tests.Services.Mock;
-using GameMode = Sunrise.Shared.Enums.Beatmaps.GameMode;
 
 namespace Sunrise.Server.Tests.Extensions;
 
 public class PerformanceAttributesExtensionsTests
 {
-
-    public static GameMode[] CustomRecalculatedGameModes = [GameMode.RelaxStandard, GameMode.AutopilotStandard, GameMode.RelaxCatchTheBeat];
     private readonly MockService _mocker = new();
 
-    public static IEnumerable<object[]> GetGameModes()
-    {
-        return Enum.GetValues(typeof(GameMode)).Cast<GameMode>().Select(mode => new object[]
-        {
-            mode
-        });
-    }
-
     [Theory]
-    [MemberData(nameof(GetGameModes))]
-    public void IsShouldNotRecalculatePerformancesWhichDoesntSupportRecalculation(GameMode gameMode)
+    [InlineData(123.4567, 123.457)]
+    [InlineData(123.4561, 123.456)]
+    [InlineData(0, 0)]
+    public void FinalizeForAkatsuki_ShouldRoundPpToThreeDecimals(double sourcePp, double expectedPp)
     {
         // Arrange
         var performance = _mocker.Score.GetRandomPerformanceAttributes();
-        performance.Difficulty.Mode = (GameMode)gameMode.ToVanillaGameMode();
-
-        var isSupportsCustomRecalculation = CustomRecalculatedGameModes.Contains(gameMode);
-
-        var mods = gameMode.GetGamemodeMods() | Mods.Easy; // Add Easy to change RelaxCtb value;
-
-        var oldPpValue = performance.PerformancePoints;
+        performance.PerformancePoints = sourcePp;
 
         // Act
-        var newPp = performance.ApplyNotStandardModRecalculationsIfNeeded(_mocker.Score.GetRandomAccuracy(), mods);
-        
+        var finalizedPerformance = performance.FinalizeForAkatsuki();
+
         // Assert
-        if (isSupportsCustomRecalculation)
-        {
-            Assert.NotEqual(newPp.PerformancePoints, oldPpValue);
-        }
-        else
-        {
-            Assert.Equal(newPp.PerformancePoints, oldPpValue);
-        }
+        Assert.Equal(expectedPp, finalizedPerformance.PerformancePoints);
     }
-    
+
     [Theory]
-    [MemberData(nameof(GetGameModes))]
-    public void IsShouldNotRecalculateScoresWhichDoesntSupportRecalculation(GameMode gameMode)
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    [InlineData(double.NaN)]
+    public void FinalizeForAkatsuki_ShouldConvertInvalidValuesToZero(double sourcePp)
     {
         // Arrange
-        var score = _mocker.Score.GetRandomScore();
         var performance = _mocker.Score.GetRandomPerformanceAttributes();
-        performance.Difficulty.Mode = (GameMode)gameMode.ToVanillaGameMode();
-
-        score.GameMode = gameMode;
-        score.Mods = gameMode.GetGamemodeMods() | Mods.Easy; // Add Easy to change RelaxCtb value;
-
-        var isSupportsCustomRecalculation = CustomRecalculatedGameModes.Contains(gameMode);
-
-        var oldPpValue = performance.PerformancePoints;
+        performance.PerformancePoints = sourcePp;
 
         // Act
-        var newPp = performance.ApplyNotStandardModRecalculationsIfNeeded(score);
-        
+        var finalizedPerformance = performance.FinalizeForAkatsuki();
+
         // Assert
-        if (isSupportsCustomRecalculation)
-        {
-            Assert.NotEqual(newPp.PerformancePoints, oldPpValue);
-        }
-        else
-        {
-            Assert.Equal(newPp.PerformancePoints, oldPpValue);
-        }
+        Assert.Equal(0, finalizedPerformance.PerformancePoints);
+    }
+
+    [Fact]
+    public void NormalizeForPerformanceCalculation_ShouldAddDoubleTimeForNightcore()
+    {
+        // Arrange
+        const Mods mods = Mods.Nightcore;
+
+        // Act
+        var normalizedMods = mods.NormalizeForPerformanceCalculation();
+
+        // Assert
+        Assert.True(normalizedMods.HasFlag(Mods.Nightcore));
+        Assert.True(normalizedMods.HasFlag(Mods.DoubleTime));
     }
 }
