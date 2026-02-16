@@ -48,7 +48,8 @@ public class UserEventService(SunriseDbContext dbContext)
         {
             OldPasswordHash = oldPassword,
             NewPasswordHash = newPassword,
-            UpdatedById = userEventAction.ExecutorUser.Id
+            UpdatedById = userEventAction.ExecutorUser.Id,
+            UpdatedByRole = userEventAction.ExecutorUser.Privilege.GetHighestPrivilege()
         };
 
         return await AddUserEvent(UserEventType.ChangePassword, userEventAction, data);

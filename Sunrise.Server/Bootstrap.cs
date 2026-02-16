@@ -30,6 +30,7 @@ using Serilog.Exceptions.EntityFrameworkCore.Destructurers;
 using Serilog.Sinks.Grafana.Loki;
 using StackExchange.Redis;
 using Sunrise.API.Controllers;
+using Sunrise.API.Extensions;
 using Sunrise.API.Serializable.Response;
 using Sunrise.Server.Middlewares;
 using Sunrise.Server.Repositories;
@@ -238,16 +239,19 @@ public static class Bootstrap
             x.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         }).AddJwtBearer(x => { x.TokenValidationParameters = Configuration.WebTokenValidationParameters; });
 
-        builder.Services.AddAuthorization(options =>
-        {
-            options.AddPolicy("RequireSuperUser", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.SuperUser)));
-            options.AddPolicy("RequireAdmin", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Admin)));
-            options.AddPolicy("RequireAdminOrModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)));
-            options.AddPolicy("RequireModerator", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Moderator)));
-            options.AddPolicy("RequireBat", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Bat)));
-        });
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy("RequireSuperUser", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.SuperUser)))
+            .AddPolicy("RequireAdmin", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Admin)))
+            .AddPolicy("RequireAdminOrModerator", policy => policy.RequireAssertion(context =>
+            {
+                if (context.Resource is not HttpContext httpContext)
+                    return false;
 
-        builder.Services.AddSingleton<IAuthorizationPolicyProvider, PrivilegeAuthorizationPolicyProvider>();
+                var user = httpContext.GetCurrentUser();
+                return user != null && (user.Privilege.HasFlag(UserPrivilege.Admin) || user.Privilege.HasFlag(UserPrivilege.Moderator));
+            }))
+            .AddPolicy("RequireBat", policy => policy.Requirements.Add(new UserPrivilegeRequirement(UserPrivilege.Bat)));
+
         builder.Services.AddScoped<IAuthorizationHandler, DatabaseAuthorizationHandler>();
         builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, CustomAuthorizationMiddlewareResultHandler>();
     }
@@ -394,8 +398,7 @@ public static class Bootstrap
             .AddApplicationPart(typeof(BaseController).Assembly)
             .AddApplicationPart(typeof(BeatmapController).Assembly)
             .AddApplicationPart(typeof(ScoreController).Assembly)
-            .AddApplicationPart(typeof(UserController).Assembly)
-            .AddApplicationPart(typeof(ClanController).Assembly);
+            .AddApplicationPart(typeof(UserController).Assembly);
 
         builder.Services.AddSingleton<WebSocketManager>();
 
@@ -415,7 +418,6 @@ public static class Bootstrap
         builder.Services.AddScoped<MedalRepository>();
 
         builder.Services.AddScoped<UserRepository>();
-        builder.Services.AddScoped<ClanRepository>();
 
         builder.Services.AddScoped<UserStatsService>();
         builder.Services.AddScoped<UserStatsSnapshotService>();
