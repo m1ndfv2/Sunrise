@@ -37,6 +37,7 @@ public class PrivilegeAuthorizationPolicyProvider(IOptions<AuthorizationOptions>
         {
             "RequireSuperUser" => UserPrivilege.SuperUser,
             "RequireAdmin" => UserPrivilege.Admin,
+            "RequireAdminOrModerator" => UserPrivilege.Moderator,
             "RequireModerator" => UserPrivilege.Moderator,
             "RequireBat" => UserPrivilege.Bat,
             _ => UserPrivilege.User

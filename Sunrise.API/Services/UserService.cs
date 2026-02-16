@@ -615,6 +615,9 @@ public class UserService(
         if (user.Privilege.HasFlag(UserPrivilege.Admin))
             badges.Add(UserBadge.Admin);
 
+        if (user.Privilege.HasFlag(UserPrivilege.Moderator))
+            badges.Add(UserBadge.Moderator);
+
         if (user.Privilege.HasFlag(UserPrivilege.Bat))
             badges.Add(UserBadge.Bat);
 
