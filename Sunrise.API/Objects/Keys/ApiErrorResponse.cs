@@ -46,6 +46,8 @@ public static class ApiErrorResponse
         public const string UserAlreadyRestricted = "User is already restricted.";
         public const string UserAlreadyUnrestricted = "User is not restricted.";
 
+        public const string RestrictedActionForPrivilegedUser = "Moderators can restrict or unrestrict only regular users.";
+
         public const string InvalidCredentialsProvided = "Invalid credentials provided.";
 
         public const string CantChangeCountryToTheSameOne = "You can't change country to the same one.";
