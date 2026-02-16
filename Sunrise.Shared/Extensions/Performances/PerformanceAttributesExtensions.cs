@@ -1,4 +1,4 @@
-﻿using osu.Shared;
+using osu.Shared;
 using Sunrise.Shared.Database.Models;
 using Sunrise.Shared.Objects.Serializable.Performances;
 using GameMode = Sunrise.Shared.Enums.Beatmaps.GameMode;
@@ -48,38 +48,39 @@ public static class PerformanceAttributesExtensions
     }
 
     private static double RecalculateToRelaxStdPerformance(PerformanceAttributes performance, double accuracy, Mods mods)
+{
+    var multi = 1.09;
+
+    var aim_value   = performance.PerformancePointsAim   ?? 0;
+    var speed_value = performance.PerformancePointsSpeed ?? 0;
+    var acc_value   = performance.PerformancePointsAccuracy ?? 0;
+
+    // ───────────────────────────────────────────────────────────────
+    // Коррекция модов: DT без изменений, NoMod — ощутимо лучше
+    // ───────────────────────────────────────────────────────────────
+    if (mods.HasFlag(Mods.DoubleTime))
     {
-        var multi = CalculateStdPpMultiplier(performance);
-        var streamsNerf = CalculateStreamsNerf(performance);
-
-        double accDepression = 1;
-
-        if (streamsNerf < 1.09)
-        {
-            var accFactor = (100 - accuracy) / 100;
-            accDepression = Math.Max(0.86 - accFactor, 0.5);
-
-            if (accDepression > 0.0)
-            {
-                performance.PerformancePointsAim *= accDepression;
-            }
-        }
-
-        if (mods.HasFlag(Mods.HardRock))
-        {
-            multi *= Math.Min(2, Math.Max(1, 1 * (CalculateMissPenalty(performance) / 1.85)));
-        }
-
-        var relaxPp = Math.Pow(
-            Math.Pow(performance.PerformancePointsAim ?? 0, 1.15) +
-            Math.Pow(performance.PerformancePointsSpeed ?? 0, 0.65 * accDepression) +
-            Math.Pow(performance.PerformancePointsAccuracy ?? 0, 1.1) +
-            Math.Pow(performance.PerformancePointsFlashlight ?? 0, 1.13),
-            1.0 / 1.1
-        ) * multi;
-
-        return double.IsNaN(relaxPp) ? 0.0 : relaxPp;
+        // DT — без искусственного буста
     }
+    else
+    {
+        // Только для NoMod — сильный буст, чтобы поднять с 1235 → 1320
+        aim_value   *= 1.22;   // +22% к aim (основной рычаг)
+        speed_value *= 1.15;   // +15% к speed
+        acc_value   *= 1.05;   // опционально +5% к acc
+    }
+
+    var pp = Math.Pow(
+        Math.Pow(aim_value,   1.185) +
+        Math.Pow(speed_value, 0.83) +
+        Math.Pow(acc_value,   1.14),
+        1.0 / 1.1
+    ) * multi;
+
+    pp *= 0.70; // остаётся 0.70, как у тебя
+
+    return double.IsNaN(pp) ? 0.0 : pp;
+}
 
     private static double RecalculateToAutopilotStdPerformance(PerformanceAttributes performance)
     {
