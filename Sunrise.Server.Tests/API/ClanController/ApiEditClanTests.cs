@@ -49,6 +49,32 @@ public class ApiEditClanTests(IntegrationDatabaseFixture fixture) : ApiTest(fixt
     }
 
     [Fact]
+    public async Task TestClanCreatorCanEditAvatarUsingPost()
+    {
+        var client = App.CreateClient().UseClient("api");
+
+        var creator = await CreateTestUser();
+        var clan = await CreateClan(creator);
+
+        client.UseUserAuthToken(await GetUserAuthTokens(creator));
+
+        var response = await client.PostAsJsonAsync("clan/avatar", new EditClanAvatarRequest
+        {
+            AvatarUrl = "https://cdn.sunrise.test/new-avatar.png"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var details = await response.Content.ReadFromJsonAsyncWithAppConfig<ClanDetailsResponse>();
+        Assert.NotNull(details);
+        Assert.Equal("https://cdn.sunrise.test/new-avatar.png", details.Clan.AvatarUrl);
+
+        var updatedClan = await Database.Clans.GetClanById(clan.Id);
+        Assert.NotNull(updatedClan);
+        Assert.Equal("https://cdn.sunrise.test/new-avatar.png", updatedClan.AvatarUrl);
+    }
+
+    [Fact]
     public async Task TestClanNameChangeHasHundredYearCooldownForRegularUser()
     {
         var client = App.CreateClient().UseClient("api");
