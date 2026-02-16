@@ -88,11 +88,30 @@ public static class PerformanceAttributesExtensions
     private static double RecalculateToAutopilotStdPerformance(PerformanceAttributes performance)
     {
         var multi = CalculateStdPpMultiplier(performance);
+        var streamsNerf = CalculateStreamsNerf(performance);
+
+        double accDepression = 1;
+
+        if (streamsNerf < 1.09)
+        {
+            var accFactor = (100 - accuracy) / 100;
+            accDepression = Math.Max(0.86 - accFactor, 0.5);
+
+            if (accDepression > 0.0)
+            {
+                performance.PerformancePointsAim *= accDepression;
+            }
+        }
+
+        if (mods.HasFlag(Mods.HardRock))
+        {
+            multi *= Math.Min(2, Math.Max(1, 1 * (CalculateMissPenalty(performance) / 1.85)));
+        }
 
         var relaxPp = Math.Pow(
-            Math.Pow(performance.PerformancePointsAim ?? 0, 0.6) +
-            Math.Pow(performance.PerformancePointsSpeed ?? 0, 1.3) +
-            Math.Pow(performance.PerformancePointsAccuracy ?? 0, 1.05) +
+            Math.Pow(performance.PerformancePointsAim ?? 0, 1.15) +
+            Math.Pow(performance.PerformancePointsSpeed ?? 0, 0.65 * accDepression) +
+            Math.Pow(performance.PerformancePointsAccuracy ?? 0, 1.1) +
             Math.Pow(performance.PerformancePointsFlashlight ?? 0, 1.13),
             1.0 / 1.1
         ) * multi;
@@ -105,6 +124,21 @@ public static class PerformanceAttributesExtensions
     ///     NaN/Infinity => 0, otherwise rounded to 3 decimals.
     /// </summary>
     public static PerformanceAttributes FinalizeForAkatsuki(this PerformanceAttributes performance)
+    {
+        var multi = CalculateStdPpMultiplier(performance);
+
+        var relaxPp = Math.Pow(
+            Math.Pow(performance.PerformancePointsAim ?? 0, 0.6) +
+            Math.Pow(performance.PerformancePointsSpeed ?? 0, 1.3) +
+            Math.Pow(performance.PerformancePointsAccuracy ?? 0, 1.05) +
+            Math.Pow(performance.PerformancePointsFlashlight ?? 0, 1.13),
+            1.0 / 1.1
+        ) * multi;
+
+        return double.IsNaN(relaxPp) ? 0.0 : relaxPp;
+    }
+
+    private static double CalculateMissPenalty(PerformanceAttributes performance)
     {
         if (mods.HasFlag(Mods.Easy))
         {
