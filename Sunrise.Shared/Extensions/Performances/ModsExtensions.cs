@@ -5,12 +5,14 @@ namespace Sunrise.Shared.Extensions.Performances;
 public static class ModsExtensions
 {
     /// <summary>
-    ///     Ignore needed mods for custom pp calculations.
+    ///     Normalizes mods to match Akatsuki behavior before requesting PP calculation.
+    ///     In Akatsuki NC is treated as DT.
     /// </summary>
-    /// <param name="mods"></param>
-    /// <returns></returns>
-    public static Mods IgnoreNotStandardModsForRecalculation(this Mods mods)
+    public static Mods NormalizeForPerformanceCalculation(this Mods mods)
     {
-        return mods & ~Mods.Relax & ~Mods.Relax2;
+        if (mods.HasFlag(Mods.Nightcore))
+            mods |= Mods.DoubleTime;
+
+        return mods;
     }
 }
