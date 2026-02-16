@@ -68,6 +68,9 @@ public static class ApiErrorResponse
         public const string UserAlreadyInClan = "User is already in clan.";
         public const string UserNotInClan = "User is not in clan.";
         public const string ClanCreatorCannotLeaveClan = "Clan creator cannot leave clan.";
+        public const string ClanMemberNotFound = "Clan member not found.";
+        public const string ClanCreatorCannotBeKicked = "Clan creator cannot be kicked.";
+        public const string CannotKickYourselfFromClan = "You cannot kick yourself from clan.";
         public const string ClanNameAlreadyTaken = "Clan name already taken.";
         public const string InvalidClanTag = "Clan tag must be exactly 3 latin letters or digits.";
 
