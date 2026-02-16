@@ -57,6 +57,27 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
     }
 
     [HttpGet]
+    [Route("{id:int}/clan")]
+    [EndpointDescription("Get user clan details")]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ClanDetailsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserClan([Range(1, int.MaxValue)] int id, [FromQuery(Name = "mode")] GameMode mode = GameMode.Standard, CancellationToken ct = default)
+    {
+        var user = await database.Users.GetUser(id, ct: ct);
+        if (user == null || user.IsRestricted())
+            return Problem(ApiErrorResponse.Detail.UserNotFound, statusCode: StatusCodes.Status404NotFound);
+
+        if (!user.ClanId.HasValue)
+            return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
+
+        var clan = await database.Clans.GetClanById(user.ClanId.Value, new QueryOptions(true), ct);
+        if (clan == null)
+            return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
+
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, clan, mode, ct));
+    }
+
+    [HttpGet]
     [Authorize("RequireAdminOrModerator")]
     [Route("{id:int}/sensitive")]
     [EndpointDescription("Get user sensitive profile")]

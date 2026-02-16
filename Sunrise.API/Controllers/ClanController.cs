@@ -8,6 +8,7 @@ using Sunrise.API.Extensions;
 using Sunrise.API.Objects.Keys;
 using Sunrise.API.Serializable.Request;
 using Sunrise.API.Serializable.Response;
+using Sunrise.API.Services;
 using Sunrise.Shared.Attributes;
 using Sunrise.Shared.Database;
 using Sunrise.Shared.Database.Models.Clans;
@@ -15,7 +16,6 @@ using Sunrise.Shared.Database.Models.Users;
 using Sunrise.Shared.Database.Objects;
 using Sunrise.Shared.Database.Repositories;
 using Sunrise.Shared.Enums.Beatmaps;
-using Sunrise.Shared.Enums.Clans;
 using Sunrise.Shared.Enums.Users;
 using Sunrise.Shared.Repositories;
 
@@ -51,7 +51,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (createResult.IsFailure)
             return Problem(createResult.Error, statusCode: StatusCodes.Status400BadRequest);
 
-        return Ok(await BuildClanDetailsResponse(createResult.Value, user.DefaultGameMode, ct));
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, createResult.Value, user.DefaultGameMode, ct));
     }
 
     [HttpPost("{id:int}/join")]
@@ -86,7 +86,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (clan == null)
             return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
 
-        return Ok(await BuildClanDetailsResponse(clan, user.DefaultGameMode, ct));
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, clan, user.DefaultGameMode, ct));
     }
 
 
@@ -297,7 +297,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (clan == null)
             return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
 
-        return Ok(await BuildClanDetailsResponse(clan, mode, ct));
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, clan, mode, ct));
     }
 
     [HttpGet("leaderboard")]
@@ -330,20 +330,7 @@ public class ClanController(DatabaseService database, SessionRepository sessions
         if (clan == null)
             return Problem(ApiErrorResponse.Detail.ClanNotFound, statusCode: StatusCodes.Status404NotFound);
 
-        return Ok(await BuildClanDetailsResponse(clan, user.DefaultGameMode, ct));
-    }
-
-    private async Task<ClanDetailsResponse> BuildClanDetailsResponse(Clan clan, GameMode mode, CancellationToken ct)
-    {
-        var members = await database.Clans.GetClanMembersByPp(clan.Id, mode, ct);
-        var totalPp = await database.Clans.GetClanTotalPp(clan.Id, mode, ct);
-
-        return new ClanDetailsResponse(
-            new ClanResponse(clan, totalPp),
-            members.Select(cm => new ClanMemberResponse(
-                new UserResponse(sessions, cm.User),
-                cm.Role == ClanRole.Creator ? "creator" : "member",
-                cm.User.UserStats.FirstOrDefault(us => us.GameMode == mode)?.PerformancePoints ?? 0)).ToList());
+        return Ok(await ClanResponseBuilder.BuildClanDetailsResponse(database, sessions, clan, user.DefaultGameMode, ct));
     }
 
     public class EditClanNameBody
