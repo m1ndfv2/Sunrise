@@ -23,15 +23,16 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
     {
         var serializedScore = new CalculateScoreRequest(score)
         {
-            Mods = score.Mods.IgnoreNotStandardModsForRecalculation()
+            Mods = score.Mods.NormalizeForPerformanceCalculation()
         };
 
         var performanceResult = await client.PostRequestWithBody<PerformanceAttributes>(session, ApiType.CalculateScorePerformance, serializedScore);
 
         if (performanceResult.IsFailure) return performanceResult;
 
-        var performance = performanceResult.Value;
-        performance = performance.ApplyNotStandardModRecalculationsIfNeeded(score);
+        var performance = performanceResult.Value
+            .ApplyLegacyRelaxStdRecalculationIfNeeded(score)
+            .FinalizeForAkatsuki();
 
         return performance;
     }
@@ -39,7 +40,7 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
     public async Task<Result<PerformanceAttributes, ErrorMessage>> CalculateBeatmapPerformance(BaseSession session, int beatmapId, GameMode mode,
         Mods mods = Mods.None, int? combo = null, int? misses = null, float? accuracy = null)
     {
-        var requestMods = mods.IgnoreNotStandardModsForRecalculation();
+        var requestMods = mods.NormalizeForPerformanceCalculation();
 
         var performancesResult = await client.SendRequest<List<PerformanceAttributes>>(session,
             ApiType.CalculateBeatmapPerformance,
@@ -47,8 +48,10 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
 
         if (performancesResult.IsFailure) return performancesResult.ConvertFailure<PerformanceAttributes>();
 
-        var performances = performancesResult.Value;
-        performances = performances.Select(p => p.ApplyNotStandardModRecalculationsIfNeeded(accuracy ?? 100, mods)).ToList();
+        var performances = performancesResult.Value
+            .Select(p => p.ApplyLegacyRelaxStdRecalculationIfNeeded(accuracy ?? 100, mods))
+            .Select(p => p.FinalizeForAkatsuki())
+            .ToList();
 
         return performances.First();
     }
@@ -66,7 +69,7 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
 
         var accuraciesString = string.Join("&acc=", accuracies);
 
-        var requestMods = mods.IgnoreNotStandardModsForRecalculation();
+        var requestMods = mods.NormalizeForPerformanceCalculation();
 
         var performancesResult = await client.SendRequest<List<PerformanceAttributes>>(session,
             ApiType.CalculateBeatmapPerformance,
@@ -74,15 +77,9 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
 
         if (performancesResult.IsFailure) return performancesResult.ConvertFailure<(PerformanceAttributes, PerformanceAttributes, PerformanceAttributes, PerformanceAttributes)>();
 
-        var performances = performancesResult.Value;
-
-        performances = performances
-            .Select((p, index) => new
-            {
-                Performance = p,
-                Index = index
-            })
-            .Select(x => x.Performance.ApplyNotStandardModRecalculationsIfNeeded(accuracies[x.Index], mods))
+        var performances = performancesResult.Value
+            .Select((p, index) => p.ApplyLegacyRelaxStdRecalculationIfNeeded(accuracies[index], mods))
+            .Select(p => p.FinalizeForAkatsuki())
             .ToList();
 
         return (performances[0], performances[1], performances[2], performances[3]);
