@@ -31,7 +31,7 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
         if (performanceResult.IsFailure) return performanceResult;
 
         var performance = performanceResult.Value
-            .ApplyRelaxPerformanceIfNeeded(score)
+            .ApplyNotStandardModRecalculationsIfNeeded(score)
             .FinalizeForAkatsuki();
 
         return performance;
@@ -49,7 +49,7 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
         if (performancesResult.IsFailure) return performancesResult.ConvertFailure<PerformanceAttributes>();
 
         var performances = performancesResult.Value
-            .Select(p => p.ApplyRelaxPerformanceIfNeeded(mods))
+            .Select(p => p.ApplyNotStandardModRecalculationsIfNeeded(accuracy ?? 100, mods))
             .Select(p => p.FinalizeForAkatsuki())
             .ToList();
 
@@ -78,7 +78,7 @@ public class CalculatorService(Lazy<DatabaseService> database, HttpClientService
         if (performancesResult.IsFailure) return performancesResult.ConvertFailure<(PerformanceAttributes, PerformanceAttributes, PerformanceAttributes, PerformanceAttributes)>();
 
         var performances = performancesResult.Value
-            .Select(p => p.ApplyRelaxPerformanceIfNeeded(mods))
+            .Select((p, i) => p.ApplyNotStandardModRecalculationsIfNeeded(accuracies[i], mods))
             .Select(p => p.FinalizeForAkatsuki())
             .ToList();
 
