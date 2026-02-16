@@ -64,6 +64,12 @@ public static class ApiErrorResponse
 
         public const string AuthorizationFailed = "Authorization failed. Please authorize to access this resource.";
 
+        public const string ClanNotFound = "Clan not found.";
+        public const string UserAlreadyInClan = "User is already in clan.";
+        public const string UserNotInClan = "User is not in clan.";
+        public const string ClanCreatorCannotLeaveClan = "Clan creator cannot leave clan.";
+        public const string ClanNameAlreadyTaken = "Clan name already taken.";
+
         public static string YourAccountIsRestricted(string? reason)
         {
             var formattedReason = reason != null ? $" Reason: {reason}" : string.Empty;
@@ -78,6 +84,11 @@ public static class ApiErrorResponse
         public static string ChangeCountryOnCooldown(DateTime changePossibleAfterDateTime)
         {
             return $"You'll be able to change your country on {changePossibleAfterDateTime} UTC+0";
+        }
+
+        public static string ClanNameChangeOnCooldown(DateTime changePossibleAfterDateTime)
+        {
+            return $"You'll be able to change clan name on {changePossibleAfterDateTime} UTC+0";
         }
     }
 }
