@@ -1,4 +1,4 @@
-﻿using osu.Shared;
+using osu.Shared;
 using Sunrise.Shared.Database.Models;
 using Sunrise.Shared.Objects.Serializable.Performances;
 using GameMode = Sunrise.Shared.Enums.Beatmaps.GameMode;
@@ -8,33 +8,30 @@ namespace Sunrise.Shared.Extensions.Performances;
 public static class PerformanceAttributesExtensions
 {
     /// <summary>
-    ///     Applies legacy relax-standard recalculation on top of calculator result.
+    ///     Applies the project relax formula. This is the only relax recalculation path.
     /// </summary>
-    public static PerformanceAttributes ApplyLegacyRelaxStdRecalculationIfNeeded(this PerformanceAttributes performance, Score score)
+    public static PerformanceAttributes ApplyRelaxPerformanceIfNeeded(this PerformanceAttributes performance, Score score)
     {
         if (score.Mods.HasFlag(Mods.Relax) && score.GameMode == GameMode.RelaxStandard)
-            performance.PerformancePoints = RecalculateToRelaxStdPerformance(performance, score.Accuracy, score.Mods);
+            performance.PerformancePoints = RecalculateToRelaxStdPerformance(performance, score.Mods);
 
         return performance;
     }
 
     /// <summary>
-    ///     Applies legacy relax-standard recalculation on top of calculator result.
+    ///     Applies the project relax formula. This is the only relax recalculation path.
     /// </summary>
-    public static PerformanceAttributes ApplyLegacyRelaxStdRecalculationIfNeeded(this PerformanceAttributes performance, double accuracy, Mods mods)
+    public static PerformanceAttributes ApplyRelaxPerformanceIfNeeded(this PerformanceAttributes performance, Mods mods)
     {
         if (mods.HasFlag(Mods.Relax) && performance.Difficulty.Mode == GameMode.Standard)
-            performance.PerformancePoints = RecalculateToRelaxStdPerformance(performance, accuracy, mods);
+            performance.PerformancePoints = RecalculateToRelaxStdPerformance(performance, mods);
 
         return performance;
     }
 
-    /// <summary>
-    ///     Legacy relax std pp formula from the old pp system, adapted to the new pipeline.
-    /// </summary>
-    private static double RecalculateToRelaxStdPerformance(PerformanceAttributes performance, double accuracy, Mods mods)
+    private static double RecalculateToRelaxStdPerformance(PerformanceAttributes performance, Mods mods)
     {
-        var multi = 1.09;
+        const double multi = 1.09;
 
         var aimValue = performance.PerformancePointsAim ?? 0;
         var speedValue = performance.PerformancePointsSpeed ?? 0;
@@ -48,11 +45,11 @@ public static class PerformanceAttributesExtensions
         }
 
         var pp = Math.Pow(
-                     Math.Pow(aimValue, 1.185) +
-                     Math.Pow(speedValue, 0.83) +
-                     Math.Pow(accValue, 1.14),
-                     1.0 / 1.1
-                 ) * multi;
+            Math.Pow(aimValue, 1.185) +
+            Math.Pow(speedValue, 0.83) +
+            Math.Pow(accValue, 1.14),
+            1.0 / 1.1
+        ) * multi;
 
         pp *= 0.70;
 

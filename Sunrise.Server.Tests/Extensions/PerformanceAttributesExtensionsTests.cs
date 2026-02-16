@@ -49,7 +49,7 @@ public class PerformanceAttributesExtensionsTests
     }
 
     [Fact]
-    public void ApplyLegacyRelaxStdRecalculationIfNeeded_ShouldApplyFormulaForRelaxStandard()
+    public void ApplyRelaxPerformanceIfNeeded_ShouldApplyFormulaForRelaxStandard()
     {
         var performance = _mocker.Score.GetRandomPerformanceAttributes();
         performance.Difficulty.Mode = GameMode.Standard;
@@ -57,14 +57,14 @@ public class PerformanceAttributesExtensionsTests
         performance.PerformancePointsSpeed = 800;
         performance.PerformancePointsAccuracy = 500;
 
-        var result = performance.ApplyLegacyRelaxStdRecalculationIfNeeded(98.5, Mods.Relax);
+        var result = performance.ApplyRelaxPerformanceIfNeeded(Mods.Relax);
 
         Assert.NotEqual(0, result.PerformancePoints);
         Assert.True(result.PerformancePoints > 0);
     }
 
     [Fact]
-    public void ApplyLegacyRelaxStdRecalculationIfNeeded_ShouldNotChangeForNonRelax()
+    public void ApplyRelaxPerformanceIfNeeded_ShouldNotChangeForNonRelax()
     {
         var score = _mocker.Score.GetRandomScore();
         score.GameMode = GameMode.Standard;
@@ -73,7 +73,7 @@ public class PerformanceAttributesExtensionsTests
         var performance = _mocker.Score.GetRandomPerformanceAttributes();
         performance.PerformancePoints = 321.123;
 
-        var result = performance.ApplyLegacyRelaxStdRecalculationIfNeeded(score);
+        var result = performance.ApplyRelaxPerformanceIfNeeded(score);
 
         Assert.Equal(321.123, result.PerformancePoints);
     }
