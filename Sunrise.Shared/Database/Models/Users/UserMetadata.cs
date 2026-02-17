@@ -41,4 +41,7 @@ public class UserMetadata
 
     [StringLength(200)]
     public string Website { get; set; } = string.Empty;
+
+    [StringLength(7)]
+    public string? NicknameColor { get; set; }
 }

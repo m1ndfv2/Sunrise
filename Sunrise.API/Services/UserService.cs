@@ -53,7 +53,8 @@ public class UserService(
             Twitch = userMetadata.Twitch,
             Twitter = userMetadata.Twitter,
             Discord = userMetadata.Discord,
-            Website = userMetadata.Website
+            Website = userMetadata.Website,
+            NicknameColor = userMetadata.NicknameColor
         };
 
         var playstyleEnum = JsonStringFlagEnumHelper.CombineFlags(request.Playstyle);
@@ -69,6 +70,7 @@ public class UserService(
         userMetadata.Twitter = request.Twitter ?? userMetadata.Twitter;
         userMetadata.Discord = request.Discord ?? userMetadata.Discord;
         userMetadata.Website = request.Website ?? userMetadata.Website;
+        userMetadata.NicknameColor = request.NicknameColor ?? userMetadata.NicknameColor;
 
         await database.Users.Metadata.UpdateUserMetadata(userMetadata);
 
@@ -76,6 +78,53 @@ public class UserService(
             eventAction,
             oldMetadata,
             userMetadata);
+
+        return new OkResult();
+    }
+
+
+    public async Task<IActionResult> UpdateNicknameColor(
+        UserEventAction eventAction,
+        EditNicknameColorRequest request,
+        CancellationToken ct = default)
+    {
+        var user = eventAction.TargetUser ?? await database.Users.GetUser(eventAction.TargetUserId, ct: ct);
+
+        if (user is null)
+            return new ObjectResult(new ProblemDetails
+            {
+                Detail = ApiErrorResponse.Detail.UserNotFound,
+                Status = StatusCodes.Status404NotFound
+            })
+            {
+                StatusCode = StatusCodes.Status404NotFound
+            };
+
+        if (!user.Privilege.HasFlag(UserPrivilege.Supporter))
+            return new ObjectResult(new ProblemDetails
+            {
+                Detail = ApiErrorResponse.Detail.InsufficientPrivileges,
+                Status = StatusCodes.Status403Forbidden
+            })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
+
+        var userMetadata = await database.Users.Metadata.GetUserMetadata(eventAction.TargetUserId, ct);
+
+        if (userMetadata is null)
+            return new ObjectResult(new ProblemDetails
+            {
+                Detail = ApiErrorResponse.Detail.UserMetadataNotFound,
+                Status = StatusCodes.Status404NotFound
+            })
+            {
+                StatusCode = StatusCodes.Status404NotFound
+            };
+
+        userMetadata.NicknameColor = request.NicknameColor;
+
+        await database.Users.Metadata.UpdateUserMetadata(userMetadata);
 
         return new OkResult();
     }

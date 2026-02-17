@@ -21,6 +21,7 @@ public class UserMetadataResponse
         Twitter = metadata.Twitter;
         Discord = metadata.Discord;
         Website = metadata.Website;
+        NicknameColor = metadata.NicknameColor;
     }
 
     [JsonPropertyName("playstyle")]
@@ -50,4 +51,8 @@ public class UserMetadataResponse
 
     [JsonPropertyName("website")]
     public string Website { get; set; }
+
+    [JsonPropertyName("nickname_color")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? NicknameColor { get; set; }
 }

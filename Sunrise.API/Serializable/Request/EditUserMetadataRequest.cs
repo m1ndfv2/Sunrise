@@ -40,4 +40,8 @@ public class EditUserMetadataRequest
     [JsonPropertyName("website")]
     [MaxLength(200)]
     public string? Website { get; set; } = null;
+
+    [JsonPropertyName("nickname_color")]
+    [RegularExpression("^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")]
+    public string? NicknameColor { get; set; } = null;
 }
