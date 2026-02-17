@@ -891,6 +891,35 @@ public class UserController(BeatmapService beatmapService, DatabaseService datab
         return await userService.UpdateUserMetadata(new UserEventAction(user, ip.ToString(), user.Id), request, ct);
     }
 
+
+    [HttpPost]
+    [Authorize("RequireAdmin")]
+    [Route("{id:int}/edit/nickname-color")]
+    [EndpointDescription("Update user nickname color")]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditUserNicknameColor(
+        [Range(1, int.MaxValue)] int id,
+        [FromBody] EditNicknameColorRequest request, CancellationToken ct = default)
+    {
+        var currentUser = HttpContext.GetCurrentUserOrThrow();
+        var ip = RegionService.GetUserIpAddress(Request);
+
+        return await userService.UpdateNicknameColor(new UserEventAction(currentUser, ip.ToString(), id), request, ct);
+    }
+
+    [HttpPost]
+    [Authorize]
+    [Route("edit/nickname-color")]
+    [EndpointDescription("Update self nickname color")]
+    [ProducesResponseType(typeof(ProblemDetailsResponseType), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EditSelfUserNicknameColor([FromBody] EditNicknameColorRequest request, CancellationToken ct = default)
+    {
+        var user = HttpContext.GetCurrentUserOrThrow();
+        var ip = RegionService.GetUserIpAddress(Request);
+
+        return await userService.UpdateNicknameColor(new UserEventAction(user, ip.ToString(), user.Id), request, ct);
+    }
+
     [HttpPost(RequestType.UploadUserAvatar)]
     [Authorize("RequireAdmin")]
     [EndpointDescription("Upload new avatar")]
