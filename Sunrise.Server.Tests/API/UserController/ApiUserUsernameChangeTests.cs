@@ -175,6 +175,42 @@ public class ApiUserUsernameChangeTests(IntegrationDatabaseFixture fixture) : Ap
         Assert.Contains(ApiErrorResponse.Detail.ChangeUsernameOnCooldown(lastUsernameChange.Time.AddDays(Configuration.UsernameChangeCooldownInDays)), responseError?.Detail);
     }
 
+    [Fact]
+    public async Task TestSupporterUsernameChangeTooFrequently()
+    {
+        // Arrange
+        var client = App.CreateClient().UseClient("api");
+
+        var supporter = _mocker.User.GetRandomUser();
+        supporter.Privilege = UserPrivilege.Supporter;
+        supporter = await CreateTestUser(supporter);
+
+        var tokens = await GetUserAuthTokens(supporter);
+        client.UseUserAuthToken(tokens);
+
+        var usernameChangeResult = await Database.Users.UpdateUserUsername(new UserEventAction(supporter, "127.0.0.1", supporter.Id), supporter.Username, "test");
+        if (usernameChangeResult.IsFailure)
+            throw new Exception(usernameChangeResult.Error);
+
+        var lastUsernameChange = await Database.Events.Users.GetLastUsernameChangeEvent(supporter.Id);
+        Assert.NotNull(lastUsernameChange);
+
+        var newUsername = _mocker.User.GetRandomUsername();
+
+        // Act
+        var response = await client.PostAsJsonAsync("user/username/change",
+            new UsernameChangeRequest
+            {
+                NewUsername = newUsername
+            });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var responseError = await response.Content.ReadFromJsonAsyncWithAppConfig<ProblemDetails>();
+        Assert.Contains(ApiErrorResponse.Detail.ChangeUsernameOnCooldown(lastUsernameChange.Time.AddDays(1)), responseError?.Detail);
+    }
+
     [Theory]
     [InlineData(UserAccountStatus.Restricted)]
     [InlineData(UserAccountStatus.Active)]

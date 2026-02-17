@@ -470,6 +470,40 @@ public class ApiUserCountryChangeTests(IntegrationDatabaseFixture fixture) : Api
     }
 
     [Fact]
+    public async Task TestSupporterChangeCountryTooFrequently()
+    {
+        // Arrange
+        var client = App.CreateClient().UseClient("api");
+
+        var supporter = _mocker.User.GetRandomUser();
+        supporter.Privilege = UserPrivilege.Supporter;
+        supporter = await CreateTestUser(supporter);
+
+        var tokens = await GetUserAuthTokens(supporter);
+        client.UseUserAuthToken(tokens);
+
+        var updateCountryResult = await Database.Users.UpdateUserCountry(new UserEventAction(supporter, "127.0.0.1", supporter.Id), supporter.Country, CountryCode.AL);
+        if (updateCountryResult.IsFailure)
+            throw new Exception(updateCountryResult.Error);
+
+        var lastUserCountryChange = await Database.Events.Users.GetLastUserCountryChangeEvent(supporter.Id);
+        Assert.NotNull(lastUserCountryChange);
+
+        // Act
+        var response = await client.PostAsJsonAsync("user/country/change",
+            new CountryChangeRequest
+            {
+                NewCountry = CountryCode.AD
+            });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var errorResponse = await response.Content.ReadFromJsonAsyncWithAppConfig<ProblemDetails>();
+        Assert.Contains(ApiErrorResponse.Detail.ChangeCountryOnCooldown(lastUserCountryChange.Time.AddDays(1)), errorResponse?.Detail);
+    }
+
+    [Fact]
     public async Task TestChangeCountryToUnknownCountry()
     {
         // Arrange

@@ -329,13 +329,17 @@ public class UserService(
         if (!skipCooldownCheck)
         {
             var lastUsernameChange = await database.Events.Users.GetLastUsernameChangeEvent(user.Id);
+            var usernameCooldownInDays = user.Privilege.HasFlag(UserPrivilege.Supporter)
+                ? 1
+                : Configuration.UsernameChangeCooldownInDays;
+
             if (lastUsernameChange != null &&
-                lastUsernameChange.Time.AddDays(Configuration.UsernameChangeCooldownInDays) > DateTime.UtcNow)
+                lastUsernameChange.Time.AddDays(usernameCooldownInDays) > DateTime.UtcNow)
                 return new ObjectResult(new ProblemDetails
                 {
                     Title = ApiErrorResponse.Title.UnableToChangeUsername,
                     Detail = ApiErrorResponse.Detail.ChangeUsernameOnCooldown(
-                        lastUsernameChange.Time.AddDays(Configuration.UsernameChangeCooldownInDays)),
+                        lastUsernameChange.Time.AddDays(usernameCooldownInDays)),
                     Status = StatusCodes.Status400BadRequest
                 })
                 {
@@ -434,13 +438,16 @@ public class UserService(
         if (!skipCooldownCheck)
         {
             var lastUserCountryChange = await database.Events.Users.GetLastUserCountryChangeEvent(user.Id);
+            var countryCooldownInDays = user.Privilege.HasFlag(UserPrivilege.Supporter)
+                ? 1
+                : Configuration.CountryChangeCooldownInDays;
 
-            if (lastUserCountryChange?.Time.AddDays(Configuration.CountryChangeCooldownInDays) > DateTime.UtcNow)
+            if (lastUserCountryChange?.Time.AddDays(countryCooldownInDays) > DateTime.UtcNow)
                 return new ObjectResult(new ProblemDetails
                 {
                     Title = ApiErrorResponse.Title.UnableToChangeCountry,
                     Detail = ApiErrorResponse.Detail.ChangeCountryOnCooldown(
-                        lastUserCountryChange.Time.AddDays(Configuration.CountryChangeCooldownInDays)),
+                        lastUserCountryChange.Time.AddDays(countryCooldownInDays)),
                     Status = StatusCodes.Status400BadRequest
                 })
                 {
